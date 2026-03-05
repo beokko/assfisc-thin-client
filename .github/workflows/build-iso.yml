@@ -53,7 +53,6 @@ jobs:
     secrets:
       REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       LUKS_PLACEHOLDER_PASS: ${{ secrets.LUKS_PLACEHOLDER_PASS }}
-      EARLY_SETUP_PASS: ${{ secrets.EARLY_SETUP_PASS }}
       # R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
       # ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
       # SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}

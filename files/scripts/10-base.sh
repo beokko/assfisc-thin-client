@@ -21,9 +21,9 @@ dnf install -y \
     NetworkManager-wifi \
     plasma-nm \
     krdc \
-    fapolicyd \
     wireguard-tools \
-    qrencode
+    qrencode \
+    firewalld
 
 # Unnecessary things
 dnf remove -y \

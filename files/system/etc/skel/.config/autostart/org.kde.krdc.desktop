@@ -1,0 +1,9 @@
+[Desktop Entry]
+Exec=krdc rdp://GH_SEC_RDP_ENDPOINT
+Icon=krdc
+Name[fr_BE]=KRDC
+Name=KRDC
+StartupWMClass=krdc
+Terminal=false
+Type=Application
+X-DocPath=krdc/index.html

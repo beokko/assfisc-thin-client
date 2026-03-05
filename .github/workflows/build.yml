@@ -56,6 +56,10 @@ jobs:
     secrets:
       REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       SIGNING_SECRET: ${{ secrets.SIGNING_SECRET }}
+      RDP_ENDPOINT: ${{ secrets.RDP_ENDPOINT }}
+      WG_ALLOWEDIPS: ${{ secrets.WG_ALLOWEDIPS }}
+      WG_PUBLIC_KEY: ${{ secrets.WG_PUBLIC_KEY }}
+      WG_ENDPOINT: ${{ secrets.WG_ENDPOINT }}
     permissions:
       contents: read
       packages: write

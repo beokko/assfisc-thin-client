@@ -1,14 +1,5 @@
 #!/bin/bash
 
-#TODO:
-# never lock, shut down (same on lid closed)
-# Disable all TTYs (doable?) after this script is done
-# fapolicyd
-# firewall default drop
-# Set up wireguard connection (NM, wg-quick, something)
-# restrict NetworkManager (polkit rules?)
-# autostart rdp client, preconfigure it
-
 set -euo pipefail
 
 setfont sun12x22
@@ -43,7 +34,7 @@ useradd -m -u 1000 -g 1000 -c "$user_display_name" -p "$password_hash" "$usernam
 
 # Autologin
 mkdir -p /etc/sddm.conf.d
-printf "[Autologin]\nUser=%s\nSession=plasma\n" "$username" > /etc/sddm.conf.d/autologin.conf
+printf "[Autologin]\nUser=%s\nSession=plasma\nRelogin=true\n" "$username" > /etc/sddm.conf.d/autologin.conf
 
 # --- LUKS reencryption ---
 echo ""
@@ -166,7 +157,7 @@ else
         "$luks_device"
 fi
 
-unset recovery_key
+unset recovery_key passphrase passphrase_confirm
 
 luks_dump=$(cryptsetup luksDump --dump-json-metadata "$luks_device")
 keyslot_salts=$(echo "$luks_dump" | jq '.keyslots[] | .kdf.salt')
@@ -181,19 +172,17 @@ echo
 echo "LUKS setup done."
 read -r -p "Press Enter to continue..."
 
-unset passphrase passphrase_confirm
-
 # --- WireGuard ---
 clear
 echo "========================================"
 echo "          WireGuard Provisioning"
 echo "========================================"
 echo ""
-mkdir -p /etc/wireguard
 chmod 700 /etc/wireguard
 
 private_key=$(wg genkey)
 public_key=$(printf '%s' "$private_key" | wg pubkey)
+preshared_key=$(wg genpsk)
 
 echo "========================================"
 echo "  WIREGUARD PUBLIC KEY - add to server:"
@@ -205,12 +194,83 @@ qrencode -t UTF8 "$public_key"
 echo ""
 unset public_key
 
-printf '%s\n' "$private_key" > /etc/wireguard/private.key
-chmod 600 /etc/wireguard/private.key
-chown root:root /etc/wireguard/private.key
-unset private_key
+read -r -p "Press Enter once the public key has been registered on the server..."
+
+echo ""
+echo "========================================"
+echo "  WIREGUARD PRE-SHARED KEY - add to server peer entry:"
+echo "========================================"
+echo ""
+echo "$preshared_key"
+echo ""
+qrencode -t UTF8 "$preshared_key"
+echo ""
+
+read -r -p "Press Enter once the pre-shared key has been registered on the server..."
+clear
+
+echo "========================================"
+echo "       WireGuard Client Configuration"
+echo "========================================"
+echo ""
+while true; do
+    read -r -p "This device's WireGuard address (CIDR, e.g. 10.100.0.2/24): " wg_client_address
+    [[ "$wg_client_address" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]] && break
+    echo "Invalid format. Use IP/prefix notation (e.g. 10.100.0.2/24)."
+done
+
+server_pubkey=$(sed -n 's/^PublicKey = //p' /etc/wireguard/wg0.conf)
+server_endpoint=$(sed -n 's/^Endpoint = //p' /etc/wireguard/wg0.conf)
+allowed_ips=$(sed -n 's/^AllowedIPs = //p' /etc/wireguard/wg0.conf)
+
+sed -i \
+    -e "s|PLACEHOLDER_PRIVATE_KEY|${private_key}|" \
+    -e "s|PLACEHOLDER_CLIENT_ADDRESS|${wg_client_address}|" \
+    -e "s|PLACEHOLDER_PRESHARED_KEY|${preshared_key}|" \
+    /etc/wireguard/wg0.conf
+chmod 600 /etc/wireguard/wg0.conf
+
+# Convert AllowedIPs to NM semicolon-delimited format (with trailing semicolon)
+nm_allowed_ips=$(echo "${allowed_ips}" | tr -d ' ' | sed 's/,/;/g')
+nm_allowed_ips="${nm_allowed_ips%;};"
+
+# Write NetworkManager keyfile for auto-connect WireGuard.
+mkdir -p /etc/NetworkManager/system-connections
+cat > /etc/NetworkManager/system-connections/wg0.nmconnection << NMEOF
+[connection]
+id=wg0
+type=wireguard
+interface-name=wg0
+autoconnect=yes
+autoconnect-priority=0
+zone=trusted
+
+[wireguard]
+private-key=${private_key}
+private-key-flags=0
+
+[wireguard-peer.${server_pubkey}]
+endpoint=${server_endpoint}
+allowed-ips=${nm_allowed_ips}
+preshared-key=${preshared_key}
+preshared-key-flags=0
+persistent-keepalive=25
+
+[ipv4]
+address1=${wg_client_address}
+method=manual
+never-default=true
+route-metric=200
+
+[ipv6]
+method=disabled
+NMEOF
+chmod 600 /etc/NetworkManager/system-connections/wg0.nmconnection
+
+unset private_key preshared_key wg_client_address server_pubkey server_endpoint allowed_ips nm_allowed_ips
 
 touch /var/lib/first-boot-provisioned
 
-echo "Press Enter to reboot..."
-read -r
+echo ""
+echo "Provisioning complete."
+read -r -p "Press Enter to reboot..."

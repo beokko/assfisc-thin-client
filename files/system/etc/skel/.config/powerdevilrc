@@ -2,3 +2,8 @@
 AutoSuspendAction=8
 AutoSuspendIdleTimeoutSec=900
 PowerButtonAction=8
+
+[Battery][SuspendAndShutdown]
+AutoSuspendAction=8
+AutoSuspendIdleTimeoutSec=900
+PowerButtonAction=8

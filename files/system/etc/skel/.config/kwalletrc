@@ -1,2 +1,4 @@
 [Wallet]
-Enabled=false
+Enabled=true
+First Use=false
+Close On Idle=false
