@@ -40,6 +40,7 @@ jobs:
       packages: write
       id-token: write
     with:
+      use_librepo: true
       image-name: "${{ needs.set-env.outputs.IMAGE_NAME }}"
       image: "${{ needs.set-env.outputs.IMAGE_REF }}:${{ needs.set-env.outputs.LATEST_TAG }}"
       update_origin_ref: "${{ needs.set-env.outputs.IMAGE_REF }}:${{ needs.set-env.outputs.LATEST_TAG }}"
