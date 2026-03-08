@@ -4,7 +4,7 @@ enable = ["org.fedoraproject.Anaconda.Modules.Localization"]
 [customizations.installer.kickstart]
 contents = """
 lang fr_BE.UTF-8
-keyboard --vckeymap=be-latin1 --xlayouts='be'
+keyboard --vckeymap=be-latin1 --xlayouts='fr'
 timezone Europe/Brussels
 
 zerombr

@@ -2,7 +2,7 @@
 DoNotAskBeforeExit=false
 
 [hostpreferences][rdp://PLACEHOLDER_RDP_ENDPOINT]
-keyboardLayout=13
+keyboardLayout=13 # change that to fr one
 shareMedia=
 showConfigAgain=false
 showLocalCursor=false

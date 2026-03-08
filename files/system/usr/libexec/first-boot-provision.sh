@@ -2,19 +2,6 @@
 
 set -euo pipefail
 
-setfont sun12x22
-
-# --- Hostname ---
-primary_iface=$(ip route show default 2>/dev/null | awk '{print $5; exit}')
-mac=$(cat "/sys/class/net/${primary_iface}/address" 2>/dev/null \
-      || ip link show | awk '/ether/ {print $2; exit}')
-mac_suffix=${mac//:/}
-mac_suffix=${mac_suffix: -6}
-machine_hostname="assfisc-client-${mac_suffix}"
-hostnamectl set-hostname "$machine_hostname"
-echo "Hostname set to: $machine_hostname"
-unset primary_iface mac mac_suffix machine_hostname
-
 cleanup() {
     [[ -f /var/lib/first-boot-provisioned ]] && return
 
@@ -22,6 +9,12 @@ cleanup() {
     echo "========================================"
     echo "  Provisioning failed or was interrupted"
     echo "========================================"
+
+    if id admin &>/dev/null; then
+        echo "Removing user 'admin'..."
+        userdel -r admin 2>/dev/null || true
+        groupdel admin 2>/dev/null || true
+    fi
 
     if [[ -n "${username:-}" ]]; then
         echo "Removing user '${username}'..."
@@ -35,6 +28,19 @@ cleanup() {
 }
 
 trap cleanup EXIT
+
+setfont sun12x22
+
+# --- Hostname ---
+primary_iface=$(ip route show default 2>/dev/null | awk '{print $5; exit}')
+mac=$(cat "/sys/class/net/${primary_iface}/address" 2>/dev/null \
+      || ip link show | awk '/ether/ {print $2; exit}')
+mac_suffix=${mac//:/}
+mac_suffix=${mac_suffix: -6}
+machine_hostname="assfisc-client-${mac_suffix}"
+hostnamectl set-hostname "$machine_hostname"
+echo "Hostname set to: $machine_hostname"
+unset primary_iface mac mac_suffix machine_hostname
 
 # --- Admin provisioning ---
 while true; do
