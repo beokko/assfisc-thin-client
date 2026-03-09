@@ -1,9 +1,18 @@
+[General]
+DefaultProtocol=rdp
+FullscreenOnConnect=true
+RememberHistory=false
+WalletSupport=false
+
+[MainWindow]
+MenuBar=Disabled
+StatusBar=Disabled
+
 [Notification Messages]
 DoNotAskBeforeExit=false
 
 [hostpreferences][rdp://PLACEHOLDER_RDP_ENDPOINT]
 keyboardLayout=12
-shareMedia=
+resolution=4
 showConfigAgain=false
-showLocalCursor=false
-walletSupport=true
+walletSupport=false
