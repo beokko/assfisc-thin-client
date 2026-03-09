@@ -16,7 +16,7 @@ ARG VARIANT
 RUN --mount=type=tmpfs,dst=/opt \
     --mount=type=tmpfs,dst=/tmp \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
-    --mount=type=secret,id=mok_key,dst=/var/lib/dkms/mok.key,required=false \
+    --mount=type=secret,id=mok_key,dst=/run/secrets/mok.key,required=false \
     /ctx/build_files/build.sh
 
 ### LINTING

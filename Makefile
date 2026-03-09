@@ -36,6 +36,7 @@ image:
 		--security-opt=label=disable \
 		--cap-add=all \
 		--device /dev/fuse \
+		--secret id=mok_key,src=/etc/pki/dkms/bootc-alma/mok.key \
 		--build-arg IMAGE_NAME=$(IMAGE_NAME) \
 		--build-arg IMAGE_REGISTRY=localhost \
 		--build-arg VARIANT=$(VARIANT) \

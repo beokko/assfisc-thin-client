@@ -9,11 +9,12 @@ cd /tmp/rtw88
 
 sed -i 's/KERNEL_VERSION(6, 13, 0)/KERNEL_VERSION(6, 12, 0)/g' mac80211.c
 
-mkdir -p /var/lib/dkms
-if [[ ! -f /etc/pki/dkms/mok.pub || ! -f /var/lib/dkms/mok.key ]]; then
+if [[ ! -f /etc/pki/dkms/mok.pub || ! -f /run/secrets/mok.key ]]; then
     echo "ERROR: MOK cert or key missing"
     exit 1
 fi
+mkdir -p /var/lib/dkms
+cp /run/secrets/mok.key /var/lib/dkms/mok.key
 cp /etc/pki/dkms/mok.pub /var/lib/dkms/mok.pub
 
 kver=$(cd /usr/lib/modules && echo *)
