@@ -32,15 +32,10 @@ trap cleanup EXIT
 setfont sun12x22
 
 # --- Hostname ---
-primary_iface=$(ip route show default 2>/dev/null | awk '{print $5; exit}')
-mac=$(cat "/sys/class/net/${primary_iface}/address" 2>/dev/null \
-      || ip link show | awk '/ether/ {print $2; exit}')
-mac_suffix=${mac//:/}
-mac_suffix=${mac_suffix: -6}
-machine_hostname="assfisc-client-${mac_suffix}"
+machine_hostname="assfisc-client-$(tail -c 7 /etc/machine-id)"
 hostnamectl set-hostname "$machine_hostname"
 echo "Hostname set to: $machine_hostname"
-unset primary_iface mac mac_suffix machine_hostname
+unset machine_hostname
 
 # --- Admin provisioning ---
 while true; do
