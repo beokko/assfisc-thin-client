@@ -29,7 +29,7 @@ cleanup() {
 
 trap cleanup EXIT
 
-setfont sun12x22
+setfont -d
 
 # --- Hostname ---
 machine_hostname="assfisc-client-$(tail -c 7 /etc/machine-id)"
@@ -59,19 +59,11 @@ admin_hashed_password=$(echo "$admin_password" | openssl passwd -6 -stdin)
 groupadd --gid 1001 admin
 useradd -u 1001 -g 1001 -G wheel -p "$admin_hashed_password" admin
 unset admin_password admin_password_confirm admin_hashed_password
-chmod 600 /home/admin/.ssh/authorized_keys
 usermod --lock root
-
-# --- User provisioning ---
-username="user"
-user_display_name="Utilisateur"
-password_hash=$(openssl rand -base64 32 | openssl passwd -6 -stdin) # random password, unused
-groupadd --gid 1000 "$username"
-useradd -m -u 1000 -g 1000 -c "$user_display_name" -p "$password_hash" "$username"
 
 # Autologin
 mkdir -p /etc/sddm.conf.d
-printf "[Autologin]\nUser=%s\nSession=plasma\nRelogin=true\n" "$username" > /etc/sddm.conf.d/autologin.conf
+printf "[Autologin]\nUser=%s\nSession=plasma\nRelogin=true\n" "$(id -un 1000)" > /etc/sddm.conf.d/autologin.conf
 
 # --- LUKS reencryption ---
 echo ""
@@ -254,9 +246,9 @@ echo "       WireGuard Client Configuration"
 echo "========================================"
 echo ""
 while true; do
-    read -r -p "This device's WireGuard address (CIDR, e.g. 10.100.0.2/24): " wg_client_address
+    read -r -p "This device's WireGuard address (CIDR, e.g. 10.8.0.2/32): " wg_client_address
     [[ "$wg_client_address" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]] && break
-    echo "Invalid format. Use IP/prefix notation (e.g. 10.100.0.2/24)."
+    echo "Invalid format. Use IP/prefix notation (e.g. 10.8.0.2/32)."
 done
 
 while true; do
@@ -266,9 +258,9 @@ while true; do
 done
 
 while true; do
-    read -r -p "WireGuard AllowedIPs (CIDR, e.g. 10.8.0.0/24): " allowed_ips
+    read -r -p "WireGuard AllowedIPs (CIDR, e.g. 10.8.0.0/24,172.20.1.1/32): " allowed_ips
     [[ "$allowed_ips" =~ ^[0-9./]+(,[0-9./]+)*$ ]] && break
-    echo "Invalid format. Use CIDR notation (e.g. 10.8.0.0/24)."
+    echo "Invalid format. Use CIDR notation (e.g. 10.8.0.0/24,172.20.1.1/32)."
 done
 
 sed -i \
@@ -282,22 +274,23 @@ chmod 600 /etc/wireguard/wg0.conf
 systemctl enable wg-quick@wg0.service
 
 unset private_key preshared_key wg_client_address server_endpoint allowed_ips
+clear
 
 # --- RDP ---
-clear
 echo "========================================"
 echo "          RDP Configuration"
 echo "========================================"
 echo ""
 read -r -p "RDP server endpoint (host or host:port): " rdp_endpoint
 
-user_config="/home/${username}/.config"
+user_config="/home/$(id -un 1000)/.config"
 sed -i "s|PLACEHOLDER_RDP_ENDPOINT|${rdp_endpoint}|g" "${user_config}/krdcrc"
 sed -i "s|PLACEHOLDER_RDP_ENDPOINT|${rdp_endpoint}|g" "${user_config}/autostart/org.kde.krdc.desktop"
 
 unset rdp_endpoint user_config
 
 # --- MOK enrollment for DKMS signing key ---
+clear
 mok_cert="/etc/pki/dkms/mok.pub"
 if [[ -f "$mok_cert" ]]; then
     mok_test_output=$(mokutil --test-key "$mok_cert" 2>&1 || true)
