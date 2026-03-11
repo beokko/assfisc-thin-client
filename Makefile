@@ -52,7 +52,8 @@ bib_image:
 	mkdir -p ./output
 
 	cp $(IMAGE_CONFIG) ./output/config.toml
-	sed -i 's#<UPDATE_IMAGE_REF>#ghcr.io/beokko/assfisc-thin-client:latest#g' ./output/config.toml
+	# Don't bother trying to switch to a new image, this is just for local testing
+	sed -i '/bootc switch/d' ./output/config.toml
 
 	if [ "$(IMAGE_TYPE)" = "iso" ]; then
 		LIBREPO=False;
