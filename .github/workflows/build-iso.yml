@@ -41,8 +41,7 @@ jobs:
       id-token: write
     with:
       image-name: "${{ needs.set-env.outputs.IMAGE_NAME }}"
-#      image: "${{ needs.set-env.outputs.IMAGE_REF }}:${{ needs.set-env.outputs.LATEST_TAG }}"
-      image: "quay.io/almalinuxorg/almalinux-bootc:9"
+      image: "${{ needs.set-env.outputs.IMAGE_REF }}:${{ needs.set-env.outputs.LATEST_TAG }}"
       update_origin_ref: "${{ needs.set-env.outputs.IMAGE_REF }}:${{ needs.set-env.outputs.LATEST_TAG }}"
       update_is_signed: ${{ needs.set-env.outputs.IS_SIGNED == 'true' }}
       config-file: ./iso.toml
