@@ -12,7 +12,7 @@ StatusBar=Disabled
 DoNotAskBeforeExit=false
 
 [hostpreferences][rdp://PLACEHOLDER_RDP_ENDPOINT]
-keyboardLayout=12
+keyboardLayout=13
 resolution=4
 showConfigAgain=false
 walletSupport=false

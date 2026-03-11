@@ -1,1 +1,1 @@
-kargs = ["rd.vconsole.keymap=fr"]
+kargs = ["rd.vconsole.keymap=be-latin1"]
