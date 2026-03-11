@@ -5,8 +5,8 @@ RememberHistory=false
 WalletSupport=false
 
 [MainWindow]
-MenuBar=Disabled
-StatusBar=Disabled
+MenuBar=Enabled
+StatusBar=Enabled
 
 [Notification Messages]
 DoNotAskBeforeExit=false

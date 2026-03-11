@@ -1,0 +1,10 @@
+[Unit]
+Description=Recreate user on boot
+Before=sddm.service first-boot-provision.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/user-recreate.sh
+
+[Install]
+WantedBy=multi-user.target
