@@ -11,7 +11,8 @@ shutdown.writeConfig("show_requestShutDown", "true")
 var tasks = panel.addWidget("org.kde.plasma.icontasks")
 tasks.currentConfigGroup = ["General"]
 tasks.writeConfig("launchers", [
-    "applications:org.kde.krdc.desktop"
+    "applications:org.kde.krdc.desktop",
+    "applications:rustdesk.desktop"
 ])
 
 panel.addWidget("org.kde.plasma.marginsseparator")
