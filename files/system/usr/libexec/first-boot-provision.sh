@@ -32,6 +32,7 @@ trap cleanup EXIT
 
 dmesg --console-off
 stty sane
+read -t 0.1 -n 10000 discard 2>/dev/null || true
 clear
 setfont -d
 
@@ -296,6 +297,7 @@ unset rdp_endpoint user_config
 
 # --- MOK enrollment for DKMS signing key ---
 clear
+mok_enrolled=false
 if [[ -f "$mok_cert" ]]; then
     mok_test_output=$(mokutil --test-key "$mok_cert" 2>&1 || true)
     if ! echo "$mok_test_output" | grep -qi "already enrolled"; then
@@ -312,6 +314,7 @@ if [[ -f "$mok_cert" ]]; then
         mokutil --import "$mok_cert" --hash-file /tmp/mok-hash
         rm -f /tmp/mok-hash
         echo "MOK enrollment queued for next reboot."
+        mok_enrolled=true
         read -r -p "Press Enter to continue..."
     else
         echo "DKMS signing key is already enrolled in MOK."
@@ -323,4 +326,16 @@ touch /var/lib/first-boot-provisioned
 
 echo ""
 echo "Provisioning complete."
-read -r -p "Press Enter to reboot..."
+
+if [[ "$mok_enrolled" == true ]]; then
+    echo ""
+    echo "A reboot is needed to complete MOK key enrollment."
+    read -r -p "Reboot now? (y/N): " reboot_choice
+    if [[ "${reboot_choice,,}" == "y" ]]; then
+        systemctl disable first-boot-provision.service
+        rm -f /etc/systemd/system/first-boot-provision.service
+        systemctl reboot
+    else
+        echo "Remember to reboot later to complete MOK enrollment."
+    fi
+fi

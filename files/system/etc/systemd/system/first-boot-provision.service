@@ -10,7 +10,6 @@ Type=oneshot
 ExecStart=/usr/libexec/first-boot-provision.sh
 ExecStartPost=systemctl disable first-boot-provision.service
 ExecStartPost=rm -f /etc/systemd/system/first-boot-provision.service
-ExecStartPost=/usr/bin/systemctl reboot
 StandardInput=tty-force
 StandardOutput=tty
 StandardError=tty
