@@ -30,6 +30,7 @@ cleanup() {
 
 trap cleanup EXIT
 
+dmesg --console-off
 stty sane
 clear
 setfont -d

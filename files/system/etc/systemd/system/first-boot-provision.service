@@ -7,7 +7,6 @@ ConditionPathExists=!/var/lib/first-boot-provisioned
 
 [Service]
 Type=oneshot
-ExecStartPre=-/usr/bin/dmesg --console-off
 ExecStart=/usr/libexec/first-boot-provision.sh
 ExecStartPost=systemctl disable first-boot-provision.service
 ExecStartPost=rm -f /etc/systemd/system/first-boot-provision.service
