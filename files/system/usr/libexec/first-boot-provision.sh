@@ -292,6 +292,8 @@ read -r -p "RDP server endpoint (host or host:port): " rdp_endpoint
 user_config="/home/$(id -un 1000)/.config"
 sed -i "s|PLACEHOLDER_RDP_ENDPOINT|${rdp_endpoint}|g" "${user_config}/krdcrc"
 sed -i "s|PLACEHOLDER_RDP_ENDPOINT|${rdp_endpoint}|g" "${user_config}/autostart/org.kde.krdc.desktop"
+sed -i "s|PLACEHOLDER_RDP_ENDPOINT|${rdp_endpoint}|g" "/etc/skel/.local/share/applications/org.kde.krdc.desktop"
+sed -i "s|PLACEHOLDER_RDP_ENDPOINT|${rdp_endpoint}|g" "/home/$(id -un 1000)/.local/share/applications/org.kde.krdc.desktop"
 
 unset rdp_endpoint user_config
 
