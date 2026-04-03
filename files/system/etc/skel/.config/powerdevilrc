@@ -1,12 +1,12 @@
 [AC][SuspendAndShutdown]
 AutoSuspendAction=8
-AutoSuspendIdleTimeoutSec=900
+AutoSuspendIdleTimeoutSec=7200
 PowerButtonAction=8
 LidAction=8
 
 [Battery][SuspendAndShutdown]
 AutoSuspendAction=8
-AutoSuspendIdleTimeoutSec=900
+AutoSuspendIdleTimeoutSec=1800
 PowerButtonAction=8
 LidAction=8
 

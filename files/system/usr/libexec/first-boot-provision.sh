@@ -2,6 +2,15 @@
 
 set -euo pipefail
 
+check_connectivity() {
+    local status
+    status=$(nmcli -t networking connectivity check 2>/dev/null)
+    if [[ "$status" == "unknown" ]]; then
+        ping -c1 -w2 1.1.1.1 &>/dev/null && status="full" || status="none"
+    fi
+    echo "$status"
+}
+
 cleanup() {
     dmesg --console-on 2>/dev/null || true
     [[ -f /var/lib/first-boot-provisioned ]] && return
@@ -35,6 +44,27 @@ stty sane
 read -t 0.1 -n 10000 discard 2>/dev/null || true
 clear
 setfont -d
+
+# --- Connectivity ---
+echo "Checking connectivity..."
+net_status=$(check_connectivity)
+echo "Connectivity: $net_status"
+
+if [[ "$net_status" != "full" ]]; then
+    read -r -p "You are not connected to the internet. Do you want to launch nmtui? (Y/n) " net_answer
+    if [[ "${net_answer,,}" != "n" ]]; then
+        nmtui
+        sleep 2
+        echo "Re-checking connectivity..."
+        net_status=$(check_connectivity)
+        if [[ "$net_status" != "full" ]]; then
+            echo "Warning: still no internet connection." >&2
+        else
+            echo "Connectivity: $net_status"
+        fi
+    fi
+fi
+
 
 # --- Hostname ---
 machine_hostname="assfisc-client-$(tail -c 7 /etc/machine-id)"

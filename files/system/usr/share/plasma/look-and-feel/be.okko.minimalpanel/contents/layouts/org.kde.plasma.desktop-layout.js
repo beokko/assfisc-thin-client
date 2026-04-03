@@ -12,7 +12,8 @@ var tasks = panel.addWidget("org.kde.plasma.icontasks")
 tasks.currentConfigGroup = ["General"]
 tasks.writeConfig("launchers", [
     "applications:org.kde.krdc.desktop",
-    "applications:rustdesk.desktop"
+    "applications:rustdesk.desktop",
+    "applications:systemsettings.desktop"
 ])
 
 panel.addWidget("org.kde.plasma.marginsseparator")

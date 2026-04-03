@@ -20,7 +20,8 @@ dnf install -y \
     qrencode \
     firewalld \
     konsole \
-    xorg-x11-xauth
+    xorg-x11-xauth \
+    freerdp 
 
 # Unnecessary things
 dnf remove -y \

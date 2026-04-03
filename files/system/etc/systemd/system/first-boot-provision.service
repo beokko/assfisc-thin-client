@@ -1,7 +1,7 @@
 [Unit]
 Description=First Boot Provisioning
 After=local-fs.target systemd-user-sessions.service
-Before=display-manager.service
+Before=display-manager.service bootc-fetch-apply-updates.timer
 Conflicts=getty@tty1.service
 ConditionPathExists=!/var/lib/first-boot-provisioned
 

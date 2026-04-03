@@ -16,3 +16,4 @@ keyboardLayout=13
 resolution=4
 showConfigAgain=false
 walletSupport=false
+grabAllKeys=true
