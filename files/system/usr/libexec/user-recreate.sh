@@ -7,9 +7,7 @@ user_display_name="Utilisateur"
 persist_files=(
     ".config/kxkbrc"                                    # keymaps & keyboard settings
     ".config/kwinoutputconfig.json"                     # display settings
-    ".config/krdcrc"                                    # main rdp client config
-    ".config/autostart/org.kde.krdc.desktop"            # rdp client autostart config
-    ".config/freerdp"                                   # some rdp connections things, mostly certificates
+    ".local/share/xfreerdp/xfreerdp.log"                # xfreerdp logfile
 )
 persist_dir="/var/lib/user-persist"
 password_hash=$(openssl rand -base64 32 | openssl passwd -6 -stdin)
