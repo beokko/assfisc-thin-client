@@ -68,7 +68,7 @@ fi
 
 
 # --- Hostname ---
-machine_hostname="assfisc-client-$(tail -c 7 /etc/machine-id)"
+machine_hostname="$PREFIX-client-$(tail -c 7 /etc/machine-id)"
 hostnamectl set-hostname "$machine_hostname"
 echo "Hostname set to: $machine_hostname"
 unset machine_hostname

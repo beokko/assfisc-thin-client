@@ -1,3 +1,4 @@
+PREFIX="assfisc"
 RDP_ENDPOINT="rds.auretienne.com"
 WG_ENDPOINT="wg.35383773.xyz"
 WG_ENDPOINT_PORT="51820"
