@@ -50,3 +50,8 @@ ln -sf /usr/share/zoneinfo/Europe/Brussels /etc/localtime
 # Change konsole's perms and ownership
 chown root:wheel /usr/bin/konsole
 chmod 750 /usr/bin/konsole
+
+# Auto-launches xfreerdp script at user login
+mkdir -p /etc/autostart
+ln -sf /usr/local/share/applications/org.kde.krdc.desktop /etc/autostart/org.kde.krdc.desktop
+chmod +x /usr/local/bin/xfreerdp.sh
