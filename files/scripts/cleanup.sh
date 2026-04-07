@@ -12,7 +12,3 @@ dnf clean all
 
 rm -rf /.gitkeep /var /boot
 mkdir -p /boot /var
-
-# Make /usr/local writeable
-rm -r /usr/local
-ln -s /var/usrlocal /usr/local

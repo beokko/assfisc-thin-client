@@ -38,6 +38,7 @@ cleanup() {
 }
 
 trap cleanup EXIT
+source /usr/lib/env
 
 dmesg --console-off
 stty sane
@@ -67,7 +68,7 @@ fi
 
 
 # --- Hostname ---
-machine_hostname="assfisc-client-$(tail -c 7 /etc/machine-id)"
+machine_hostname="$PREFIX-client-$(tail -c 7 /etc/machine-id)"
 hostnamectl set-hostname "$machine_hostname"
 echo "Hostname set to: $machine_hostname"
 unset machine_hostname
@@ -275,60 +276,19 @@ qrencode -t UTF8 "$preshared_key"
 echo ""
 
 read -r -p "Press Enter once the pre-shared key has been registered on the server..."
-clear
-
-echo "========================================"
-echo "       WireGuard Client Configuration"
-echo "========================================"
-echo ""
-while true; do
-    read -r -p "This device's WireGuard address (CIDR, e.g. 10.8.0.2/32): " wg_client_address
-    [[ "$wg_client_address" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]] && break
-    echo "Invalid format. Use IP/prefix notation (e.g. 10.8.0.2/32)."
-done
-
-while true; do
-    read -r -p "WireGuard server endpoint (host:port, e.g. vpn.example.com:51820): " server_endpoint
-    [[ "$server_endpoint" =~ ^[^:]+:[0-9]+$ ]] && break
-    echo "Invalid format. Use host:port notation (e.g. vpn.example.com:51820)."
-done
-
-while true; do
-    read -r -p "WireGuard AllowedIPs (CIDR, e.g. 10.8.0.0/24,172.20.1.1/32): " allowed_ips
-    [[ "$allowed_ips" =~ ^[0-9./]+(,[0-9./]+)*$ ]] && break
-    echo "Invalid format. Use CIDR notation (e.g. 10.8.0.0/24,172.20.1.1/32)."
-done
 
 sed -i \
     -e "s|PLACEHOLDER_PRIVATE_KEY|${private_key}|" \
-    -e "s|PLACEHOLDER_CLIENT_ADDRESS|${wg_client_address}|" \
+    -e "s|PLACEHOLDER_CLIENT_ADDRESS|${WG_PEER_IP}|" \
     -e "s|PLACEHOLDER_PRESHARED_KEY|${preshared_key}|" \
-    -e "s|PLACEHOLDER_WG_ENDPOINT|${server_endpoint}|" \
-    -e "s|PLACEHOLDER_WG_ALLOWEDIPS|${allowed_ips}|" \
+    -e "s|PLACEHOLDER_WG_ENDPOINT|${WG_ENDPOINT}:${WG_ENDPOINT_PORT}|" \
+    -e "s|PLACEHOLDER_WG_ALLOWEDIPS|${WG_ALLOWD_IPS}|" \
     /etc/wireguard/wg0.conf
 chmod 600 /etc/wireguard/wg0.conf
 systemctl enable wg-quick@wg0.service
-
-unset private_key preshared_key wg_client_address server_endpoint allowed_ips
+unset private_key preshared_key
 clear
 
-# --- RDP ---
-echo "========================================"
-echo "          RDP Configuration"
-echo "========================================"
-echo ""
-read -r -p "RDP server endpoint (host or host:port): " rdp_endpoint
-
-user_config="/home/$(id -un 1000)/.config"
-sed -i "s|PLACEHOLDER_RDP_ENDPOINT|${rdp_endpoint}|g" "${user_config}/krdcrc"
-sed -i "s|PLACEHOLDER_RDP_ENDPOINT|${rdp_endpoint}|g" "${user_config}/autostart/org.kde.krdc.desktop"
-sed -i "s|PLACEHOLDER_RDP_ENDPOINT|${rdp_endpoint}|g" "/etc/skel/.local/share/applications/org.kde.krdc.desktop"
-sed -i "s|PLACEHOLDER_RDP_ENDPOINT|${rdp_endpoint}|g" "/home/$(id -un 1000)/.local/share/applications/org.kde.krdc.desktop"
-
-unset rdp_endpoint user_config
-
-# --- MOK enrollment for DKMS signing key ---
-clear
 mok_enrolled=false
 if [[ -f "$mok_cert" ]]; then
     mok_test_output=$(mokutil --test-key "$mok_cert" 2>&1 || true)

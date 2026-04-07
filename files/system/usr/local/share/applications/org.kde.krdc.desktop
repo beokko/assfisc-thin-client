@@ -1,9 +1,9 @@
 [Desktop Entry]
-Exec=krdc rdp://PLACEHOLDER_RDP_ENDPOINT
+Exec=/usr/local/bin/xfreerdp.sh
 Icon=krdc
 Name[fr_BE]=KRDC
 Name=KRDC
-StartupWMClass=krdc
+StartupWMClass=xfreerdp
 Terminal=false
 Type=Application
 X-DocPath=krdc/index.html
