@@ -7,6 +7,8 @@ lang fr_BE.UTF-8
 keyboard --vckeymap=be-latin1 --xlayouts='fr'
 timezone Europe/Brussels
 
+firewall --use-system-defaults
+
 zerombr
 clearpart --all --initlabel --disklabel=gpt
 autopart --type=lvm --encrypted --passphrase=PLACEHOLDER --luks-version=luks2
