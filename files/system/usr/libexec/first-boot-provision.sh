@@ -55,8 +55,8 @@ if [[ "$net_status" != "full" ]]; then
     read -r -p "You are not connected to the internet. Do you want to launch nmtui? (Y/n) " net_answer
     if [[ "${net_answer,,}" != "n" ]]; then
         nmtui
-        sleep 2
         echo "Re-checking connectivity..."
+        sleep 2
         net_status=$(check_connectivity)
         if [[ "$net_status" != "full" ]]; then
             echo "Warning: still no internet connection." >&2
@@ -155,8 +155,51 @@ while true; do
     echo "passphrases do not match. Try again."
 done
 
+echo
+if systemd-cryptenroll --tpm2-device=list 2>/dev/null | grep -q "/dev/"; then
+    echo "TPM2 detected. Enrolling disk unlock via TPM2 + PIN."
+
+    if ! mokutil --sb-state 2>/dev/null | grep -iq 'secureboot enabled'; then
+        echo "ERROR: SecureBoot is disabled (or in setup mode)!"
+        echo "You need to enable it in UEFI before using this device."
+        read -r -p "Press Enter to exit..."
+        exit 1
+    fi
+
+    cred_dir=$(mktemp -d)
+    chmod 700 "$cred_dir"
+    printf '%s' "$original_passphrase" > "$cred_dir/cryptenroll.passphrase"
+    printf '%s' "$passphrase" > "$cred_dir/cryptenroll.new-tpm2-pin"
+
+    CREDENTIALS_DIRECTORY="$cred_dir" systemd-cryptenroll \
+        --tpm2-device=auto \
+        --tpm2-pcrs=7 \
+        --tpm2-with-pin=yes \
+        "$luks_device"
+
+    rm -rf "$cred_dir"
+
+    echo
+    echo "At each boot you will be prompted for the TPM PIN (passphrase)."
+    echo "The recovery key unlocks the disk if the TPM is unavailable."
+    echo
+
+    echo "SecureBoot enabled!"
+    echo "Make sure your UEFI firmware is password-protected"
+
+    read -r -p "Press Enter to acknowledge..."
+else
+    echo "No TPM2 detected. Adding new passphrase as LUKS keyslot..."
+
+    printf '%s' "$passphrase" | cryptsetup luksAddKey \
+        --batch-mode \
+        --key-file=<(printf '%s' "$original_passphrase") \
+        "$luks_device"
+fi
+
 recovery_key=$(set +o pipefail; head -c 1024 /dev/urandom | tr -dc 'A-Z0-9' | head -c 40 | fold -w5 | paste -sd'-')
 
+echo
 echo "Adding recovery key to keyslot..."
 printf '%s' "$recovery_key" \
     | cryptsetup luksAddKey \
@@ -182,45 +225,6 @@ printf '%s' "$original_passphrase" \
 unset original_passphrase
 
 echo
-if systemd-cryptenroll --tpm2-device=list 2>/dev/null | grep -q "/dev/"; then
-    echo "TPM2 detected. Enrolling disk unlock via TPM2 + PIN."
-
-    cred_dir=$(mktemp -d)
-    chmod 700 "$cred_dir"
-    printf '%s' "$recovery_key" > "$cred_dir/cryptenroll.passphrase"
-    printf '%s' "$passphrase" > "$cred_dir/cryptenroll.new-tpm2-pin"
-
-    CREDENTIALS_DIRECTORY="$cred_dir" systemd-cryptenroll \
-        --tpm2-device=auto \
-        --tpm2-pcrs=7 \
-        --tpm2-with-pin=yes \
-        "$luks_device"
-
-    rm -rf "$cred_dir"
-
-    echo
-    echo "At each boot you will be prompted for the TPM PIN (passphrase)."
-    echo "The recovery key unlocks the disk if the TPM is unavailable."
-    echo
-
-    echo
-    if mokutil --sb-state 2>/dev/null | grep -iq 'secureboot enabled'; then
-        echo "SecureBoot enabled!"
-        echo "Make sure your UEFI firmware is password-protected"
-    else
-        echo "WARNING: SecureBoot is disabled (or in setup mode)!"
-        echo "You should enable it in UEFI before using this device."
-        echo "Additionally, make sure your UEFI firmware is password-protected."
-    fi
-    read -r -p "Press Enter to acknowledge..."
-else
-    echo "No TPM2 detected. Adding new passphrase as LUKS keyslot..."
-
-    printf '%s' "$passphrase" | cryptsetup luksAddKey \
-        --batch-mode \
-        --key-file=<(printf '%s' "$recovery_key") \
-        "$luks_device"
-fi
 
 # Pre-generate MOK hash while passphrase is still available
 mok_cert="/etc/pki/dkms/mok.pub"
@@ -237,7 +241,6 @@ if [[ $keyslot_salts == *"$original_keyslot_salt"* ]]; then
     exit 1
 fi
 
-echo
 echo "LUKS setup done."
 read -r -p "Press Enter to continue..."
 
@@ -275,18 +278,29 @@ echo ""
 qrencode -t UTF8 "$preshared_key"
 echo ""
 
-read -r -p "Press Enter once the pre-shared key has been registered on the server..."
+read -r -p "Press Enter once the pre-shared key has been registered on the server..."clear
+clear
+
+echo "========================================"
+echo "       WireGuard Client Configuration"
+echo "========================================"
+echo ""
+while true; do
+    read -r -p "This device's WireGuard address (CIDR, e.g. 10.8.0.2/32): " wg_client_address
+    [[ "$wg_client_address" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]] && break
+    echo "Invalid format. Use IP/prefix notation (e.g. 10.8.0.2/32)."
+done
 
 sed -i \
     -e "s|PLACEHOLDER_PRIVATE_KEY|${private_key}|" \
-    -e "s|PLACEHOLDER_CLIENT_ADDRESS|${WG_PEER_IP}|" \
+    -e "s|PLACEHOLDER_CLIENT_ADDRESS|${wg_client_address}|" \
     -e "s|PLACEHOLDER_PRESHARED_KEY|${preshared_key}|" \
     -e "s|PLACEHOLDER_WG_ENDPOINT|${WG_ENDPOINT}:${WG_ENDPOINT_PORT}|" \
-    -e "s|PLACEHOLDER_WG_ALLOWEDIPS|${WG_ALLOWD_IPS}|" \
+    -e "s|PLACEHOLDER_WG_ALLOWEDIPS|${WG_ALLOWED_IPS}|" \
     /etc/wireguard/wg0.conf
 chmod 600 /etc/wireguard/wg0.conf
-systemctl enable wg-quick@wg0.service
-unset private_key preshared_key
+systemctl enable --now wg-quick@wg0.service
+unset private_key preshared_key wg_client_address
 clear
 
 mok_enrolled=false

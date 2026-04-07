@@ -60,3 +60,6 @@ chmod +x /usr/local/bin/xfreerdp.sh
 if [[ -f /run/secrets/auth.json ]]; then
     install -Dm0600 /run/secrets/auth.json /usr/lib/ostree/auth.json
 fi
+
+chmod +x /usr/libexec/wg-recreate.sh
+systemctl enable wg-recreate.service
