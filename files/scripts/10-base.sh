@@ -55,3 +55,8 @@ chmod 750 /usr/bin/konsole
 mkdir -p /etc/skel/.config/autostart
 ln -sf /usr/local/share/applications/org.kde.krdc.desktop /etc/skel/.config/autostart/org.kde.krdc.desktop
 chmod +x /usr/local/bin/xfreerdp.sh
+
+# Copy ghcr pull token, if applicable
+if [[ -f /run/secrets/auth.json ]]; then
+    install -Dm0600 /run/secrets/auth.json /usr/lib/ostree/auth.json
+fi

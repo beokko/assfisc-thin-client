@@ -17,6 +17,7 @@ ARG VARIANT
 RUN --mount=type=tmpfs,dst=/opt \
     --mount=type=tmpfs,dst=/tmp \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=secret,id=pull_secret,dst=/run/secrets/auth.json,required=false \
     /ctx/build_files/build.sh
 
 ### LINTING
