@@ -57,7 +57,7 @@ ln -sf /usr/local/share/applications/org.kde.krdc.desktop /etc/skel/.config/auto
 chmod +x /usr/local/bin/xfreerdp.sh
 
 # Copy ghcr pull token, if applicable
-if [[ -f /run/secrets/auth.json ]]; then
+if [[ -f /run/secrets/auth.json && -s /run/secrets/auth.json ]]; then
     install -Dm0600 /run/secrets/auth.json /usr/lib/ostree/auth.json
 fi
 
