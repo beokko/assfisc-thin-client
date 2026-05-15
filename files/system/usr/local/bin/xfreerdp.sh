@@ -92,15 +92,12 @@ while true; do
     get_credentials
 
     rdp_output=$(mktemp)
-    rdp_exit=0
     set +e
     xfreerdp "${xfreerdp_args[@]}" "/d:$CRED_DOMAIN" "/u:$CRED_USER" "/p:$CRED_PASS" \
-        > "$rdp_output" 2>&1
-    rdp_exit=$?
+        2>&1 | tee "$rdp_output" | while IFS= read -r line; do log "$line"; done
+    rdp_exit=${PIPESTATUS[0]}
     set -e
     unset CRED_PASS
-
-    while IFS= read -r line; do log "$line"; done < "$rdp_output"
 
     if [[ $rdp_exit -eq 0 ]]; then
         rm -f "$rdp_output"
