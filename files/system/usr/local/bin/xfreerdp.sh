@@ -7,7 +7,7 @@ source "$env_file"
 logfile="$HOME/.local/share/xfreerdp/xfreerdp.log"
 kb_layout="0x080C"
 xfreerdp_args=(
-    "/v:$RDP_ENDPOINT" "/d:" "/u:" "/p:" "/f"
+    "/v:$RDP_ENDPOINT" "/f"
     "/sound" "/smartcard" "/kbd:layout:$kb_layout"
     "/cert:tofu" "/floatbar:sticky:off,default:hidden,show:fullscreen"
 )
@@ -37,6 +37,39 @@ rotate_logfile() {
     fi
 }
 
+get_credentials() {
+    local username password domain
+    domain="${RDP_DOMAIN:-}"
+
+    if [[ -z "$domain" ]]; then
+        domain=$(kdialog --title "RDP Connection" \
+            --inputbox "Domain (leave empty if not applicable):" "" 2>/dev/null) || {
+            log "Credential prompt cancelled by user"
+            exit 0
+        }
+    fi
+
+    username=$(kdialog --title "RDP Connection" \
+        --inputbox "Username:" "" 2>/dev/null) || {
+        log "Credential prompt cancelled by user"
+        exit 0
+    }
+    if [[ -z "$username" ]]; then
+        kdialog --title "RDP Connection" --error "Username cannot be empty."
+        exit 1
+    fi
+
+    password=$(kdialog --title "RDP Connection" \
+        --password "Password for ${domain:+$domain\\}$username:" 2>/dev/null) || {
+        log "Credential prompt cancelled by user"
+        exit 0
+    }
+
+    CRED_DOMAIN="$domain"
+    CRED_USER="$username"
+    CRED_PASS="$password"
+}
+
 check_availability() {
     local attempt=0
     until ping -c1 -W5 "$RDP_ENDPOINT" &>/dev/null; do
@@ -54,6 +87,37 @@ check_availability() {
 create_logfile
 rotate_logfile
 check_availability
-while IFS= read -r line; do
-    log "$line"
-done < <(xfreerdp "${xfreerdp_args[@]}" 2>&1)
+
+while true; do
+    get_credentials
+
+    rdp_output=$(mktemp)
+    rdp_exit=0
+    set +e
+    xfreerdp "${xfreerdp_args[@]}" "/d:$CRED_DOMAIN" "/u:$CRED_USER" "/p:$CRED_PASS" \
+        > "$rdp_output" 2>&1
+    rdp_exit=$?
+    set -e
+    unset CRED_PASS
+
+    while IFS= read -r line; do log "$line"; done < "$rdp_output"
+
+    if [[ $rdp_exit -eq 0 ]]; then
+        rm -f "$rdp_output"
+        break
+    fi
+
+    if grep -qE "ERRCONNECT_LOGON_FAILURE|ERRCONNECT_ACCOUNT|ERRCONNECT_PASSWORD|NLA Authentication failure" "$rdp_output"; then
+        rm -f "$rdp_output"
+        log "Authentication failed for user ${CRED_DOMAIN:+$CRED_DOMAIN\\}$CRED_USER"
+        kdialog --title "RDP Connection" \
+            --sorry "Authentication failed. Please check your credentials and try again." 2>/dev/null || true
+        continue
+    fi
+
+    rm -f "$rdp_output"
+    log "RDP session ended with error (exit code $rdp_exit)"
+    /usr/bin/notify-send -a xfreerdp -h "string:desktop-entry:org.kde.krdc" \
+        "RDP Connection" "Connection ended unexpectedly (error $rdp_exit)"
+    break
+done
