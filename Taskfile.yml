@@ -1,0 +1,170 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: "3"
+
+set: [pipefail, errexit]
+
+vars:
+  PODMAN: "sudo podman"
+
+  IMAGE_NAME: "localhost/bootc-images/alma"
+  CONTAINER_FILE: "Dockerfile"
+  VARIANT: "kde"
+  IMAGE_CONFIG: "./iso.toml"
+
+  QEMU_DISK_QCOW2: "./output/qcow2/disk.qcow2"
+  QEMU_ISO: "./output/bootiso/install.iso"
+  LIBVIRT_DOMAIN: "1-bootc-alma"
+  LIBVIRT_ROOT: "/mnt/btrfs_root/kvm"
+  LIBVIRT_QCOW2: "{{.LIBVIRT_ROOT}}/virt-disks/{{.LIBVIRT_DOMAIN}}.qcow2"
+  LIBVIRT_ISO: "{{.LIBVIRT_ROOT}}/iso/bootc-alma-amd64.iso"
+
+  WG_DEV_PUBLIC_KEY: "/s8cFxU/uc2B9wonFTySaznAjyM5Vtlhs0JY+KnKFww="
+
+tasks:
+  default:
+    desc: Show available tasks
+    silent: true
+    cmds:
+      - task --list
+
+  clean:
+    desc: Clean output directory
+    cmd: "sudo rm -rf ./output"
+
+  image:
+    desc: Build image locally (rootful podman)
+    run: once
+    sources:
+      - Dockerfile
+      - env
+      - files/**/*
+    generates:
+      - .task/image.built
+    status:
+      - "{{.PODMAN}} image inspect {{.IMAGE_NAME}} >/dev/null 2>&1"
+    vars:
+      BUILD_CTX: ./output/build-context
+    cmds:
+      - sudo -v
+      - rm -rf {{.BUILD_CTX}}
+      - mkdir -p {{.BUILD_CTX}}
+      - cp -a Dockerfile env files *.pub {{.BUILD_CTX}}/
+      - sed -i 's|GH_SEC_WG_PUBLIC_KEY|{{.WG_DEV_PUBLIC_KEY}}|' {{.BUILD_CTX}}/files/system/etc/wireguard/wg0.conf
+      - echo 'systemctl disable firewalld.service' >> {{.BUILD_CTX}}/files/scripts/12-firewall.sh
+      - mkdir -p {{.BUILD_CTX}}/files/system/usr/ssh
+      - cp ~/.ssh/id_ed25519.pub {{.BUILD_CTX}}/files/system/usr/ssh/authorized_keys
+      - defer: rm -rf {{.BUILD_CTX}}
+      - |
+        {{.PODMAN}} build \
+          --security-opt=label=disable \
+          --cap-add=all \
+          --device /dev/fuse \
+          --build-arg IMAGE_NAME={{.IMAGE_NAME}} \
+          --build-arg IMAGE_REGISTRY=localhost \
+          --build-arg VARIANT={{.VARIANT}} \
+          -t {{.IMAGE_NAME}} \
+          -f {{.BUILD_CTX}}/{{.CONTAINER_FILE}} \
+          {{.BUILD_CTX}}
+      - mkdir -p .task
+      - "{{.PODMAN}} images --quiet --no-trunc {{.IMAGE_NAME}} > .task/image.built"
+
+  bib_image:
+    desc: Generic bib run
+    deps: [image]
+    internal: true
+    requires:
+      vars: [IMAGE_TYPE, OUTPUT_FILE]
+    vars:
+      LIBREPO: '{{if eq .IMAGE_TYPE "iso"}}False{{else}}True{{end}}'
+    sources:
+      - "{{.IMAGE_CONFIG}}"
+      - .task/image.built
+    generates:
+      - "{{.OUTPUT_FILE}}"
+    cmds:
+      - mkdir -p ./output
+      - cp {{.IMAGE_CONFIG}} ./output/config.toml
+      - sed -i '/bootc switch/d' ./output/config.toml
+      - |
+        {{.PODMAN}} run \
+          --rm \
+          -it \
+          --privileged \
+          --pull=newer \
+          --security-opt label=type:unconfined_t \
+          -v ./output:/output \
+          -v ./output/config.toml:/config.toml:ro \
+          -v /var/lib/containers/storage:/var/lib/containers/storage \
+          quay.io/centos-bootc/bootc-image-builder:latest \
+          --type {{.IMAGE_TYPE}} \
+          --use-librepo={{.LIBREPO}} \
+          --progress verbose \
+          {{.IMAGE_NAME}}
+
+  iso:
+    desc: Create iso with bib
+    cmds:
+      - task: bib_image
+        vars:
+          IMAGE_TYPE: iso
+          OUTPUT_FILE: "{{.QEMU_ISO}}"
+
+  qcow2:
+    desc: Create qcow2 with bib
+    cmds:
+      - task: bib_image
+        vars:
+          IMAGE_TYPE: qcow2
+          OUTPUT_FILE: "{{.QEMU_DISK_QCOW2}}"
+
+  vm_base:
+    internal: true
+    deps: [iso]
+    cmds:
+      - cp -f {{.QEMU_ISO}} {{.LIBVIRT_ISO}}
+      - |
+        if virsh dominfo {{.LIBVIRT_DOMAIN}} >/dev/null 2>&1; then
+          if [ "$(virsh domstate {{.LIBVIRT_DOMAIN}})" = "running" ]; then
+            virsh destroy {{.LIBVIRT_DOMAIN}}
+          fi
+          virsh undefine {{.LIBVIRT_DOMAIN}} --nvram
+        fi
+      - |
+        if ! [ -f "{{.LIBVIRT_QCOW2}}" ]; then
+          qemu-img create -f qcow2 {{.LIBVIRT_QCOW2}} 64G'
+        fi
+      - |
+        virt-install \
+        --hvm \
+        --noautoconsole \
+        --osinfo almalinux10 \
+        -n {{.LIBVIRT_DOMAIN}} \
+        --memory 2048 \
+        --vcpus 2 \
+        --cdrom {{.LIBVIRT_ISO}} \
+        --disk {{.LIBVIRT_QCOW2}} \
+        --network network=LAN10 \
+        --graphics spice \
+        {{.EXTRA_ARGS}} \
+        --wait
+
+  vm:
+    desc: Install and start a VM from the ISO (plain UEFI)
+    cmds:
+      - task: vm_base
+        vars:
+          EXTRA_ARGS: ""
+
+  vm-tpm:
+    desc: Install and start a VM with TPM (secure boot key enrollment disabled)
+    cmds:
+      - task: vm_base
+        vars:
+          EXTRA_ARGS: "--boot uefi,firmware.feature0.name=secure-boot,firmware.feature0.enabled=yes,firmware.feature1.name=enrolled-keys,firmware.feature1.enabled=no --tpm default"
+
+  vm-tpm-sb:
+    desc: Install and start a VM with TPM and secure boot enabled
+    cmds:
+      - task: vm_base
+        vars:
+          EXTRA_ARGS: "--boot uefi,firmware.feature0.name=secure-boot,firmware.feature0.enabled=yes,firmware.feature1.name=enrolled-keys,firmware.feature1.enabled=yes --tpm default"
