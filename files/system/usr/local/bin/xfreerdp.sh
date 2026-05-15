@@ -41,15 +41,7 @@ get_credentials() {
     local username password domain
     domain="${RDP_DOMAIN:-}"
 
-    if [[ -z "$domain" ]]; then
-        domain=$(kdialog --title "RDP Connection" \
-            --inputbox "Domain (leave empty if not applicable):" "" 2>/dev/null) || {
-            log "Credential prompt cancelled by user"
-            exit 0
-        }
-    fi
-
-    username=$(kdialog --title "RDP Connection" \
+    username=$(kdialog --geometry 400x120 --title "RDP Connection" \
         --inputbox "Username:" "" 2>/dev/null) || {
         log "Credential prompt cancelled by user"
         exit 0
@@ -59,7 +51,7 @@ get_credentials() {
         exit 1
     fi
 
-    password=$(kdialog --title "RDP Connection" \
+    password=$(kdialog --geometry 400x120 --title "RDP Connection" \
         --password "Password for ${domain:+$domain\\}$username:" 2>/dev/null) || {
         log "Credential prompt cancelled by user"
         exit 0
