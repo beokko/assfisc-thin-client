@@ -21,7 +21,8 @@ dnf install -y \
     firewalld \
     konsole \
     xorg-x11-xauth \
-    freerdp 
+    freerdp \
+    kdialog
 
 # Unnecessary things
 dnf remove -y \

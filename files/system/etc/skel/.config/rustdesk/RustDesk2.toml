@@ -1,0 +1,5 @@
+rendezvous_server = 'rustdesk.okko.be:21116'
+
+[options]
+custom-rendezvous-server = 'rustdesk.okko.be'
+key = GH_RD_PUBLIC_KEY
