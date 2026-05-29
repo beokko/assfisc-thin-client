@@ -121,7 +121,7 @@ echo ""
 
 luks_dump=$(cryptsetup luksDump --dump-json-metadata "$luks_device")
 keyslot_salts=$(echo "$luks_dump" | jq '.keyslots[] | .kdf.salt')
-if [[ $(echo "$keyslot_salts" | wc -l) -gt 1 ]]; then 
+if [[ $(echo "$keyslot_salts" | wc -l) -gt 1 ]]; then
     echo "FATAL: there are multiple keys!"
     echo "This is never expected nor normal. You should reinstall."
     read -r -p "Press Enter to exit"
