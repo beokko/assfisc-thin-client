@@ -2,6 +2,9 @@
 
 set -xeuo pipefail
 
+# Upgrade base packages
+dnf upgrade -y
+
 # KDE minimal
 dnf install -y --setopt=group_package_types=mandatory @"KDE"
 
