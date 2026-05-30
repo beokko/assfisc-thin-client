@@ -131,7 +131,7 @@ tasks:
         fi
       - |
         if ! [ -f "{{.LIBVIRT_QCOW2}}" ]; then
-          qemu-img create -f qcow2 {{.LIBVIRT_QCOW2}} 64G'
+          qemu-img create -f qcow2 {{.LIBVIRT_QCOW2}} 64G
         fi
       - |
         virt-install \

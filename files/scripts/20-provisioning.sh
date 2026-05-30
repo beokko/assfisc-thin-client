@@ -12,3 +12,4 @@ chmod 600 /etc/wireguard/wg0.conf
 
 systemctl enable first-boot-provision.service
 systemctl enable user-recreate.service
+systemctl enable selinux-relabel.service

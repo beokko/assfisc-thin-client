@@ -1,0 +1,13 @@
+[Unit]
+Description=SELinux relabel of mutable state (first boot)
+After=multi-user.target
+ConditionPathExists=!/var/lib/selinux-relabel-done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/restorecon -R /var /etc
+ExecStartPost=/usr/bin/touch /var/lib/selinux-relabel-done
+ExecStartPost=/usr/bin/systemctl --no-block reboot
+
+[Install]
+WantedBy=multi-user.target
