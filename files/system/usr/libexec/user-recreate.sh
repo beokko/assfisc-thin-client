@@ -6,6 +6,7 @@ username="user"
 user_display_name="Utilisateur"
 persist_files=(
     ".config/kxkbrc"                                    # keymaps & keyboard settings
+    ".config/kcminputrc"                                # input settings & numlock
     ".config/kwinoutputconfig.json"                     # display settings
     ".local/share/xfreerdp/xfreerdp.log"                # xfreerdp logfile
 )
