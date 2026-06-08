@@ -7,7 +7,7 @@ source "$env_file"
 logfile="$HOME/.local/share/xfreerdp/xfreerdp.log"
 kb_layout="0x080C"
 xfreerdp_args=(
-    "/v:$RDP_ENDPOINT" "/multimon"
+    "/v:$RDP_ENDPOINT" "/multimon" "/printer"
     "/sound" "/smartcard" "/kbd:layout:$kb_layout"
     "/cert:tofu" "/floatbar:sticky:off,default:hidden,show:fullscreen"
 )
