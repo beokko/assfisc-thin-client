@@ -2,12 +2,6 @@
 
 set -xeuo pipefail
 
-# Printing
-systemctl mask cups.service cups.socket cups-browsed.service
-
-# mDNS (Avahi)
-systemctl mask avahi-daemon.service avahi-daemon.socket
-
 # Modem Manager (no mobile modems on thin client)
 systemctl mask ModemManager.service
 

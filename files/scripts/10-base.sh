@@ -39,8 +39,6 @@ dnf remove -y \
     makedumpfile \
     PackageKit \
     qt6-qtwebengine \
-    ghostscript \
-    libgs \
     toolbox \
     sos \
     usbmuxd \
