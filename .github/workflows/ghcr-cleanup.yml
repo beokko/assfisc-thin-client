@@ -2,7 +2,7 @@ name: Clean up old GHCR images
 
 on:
   schedule:
-    - cron: '0 3 * * 0'
+    - cron: "0 3 * * 0"
   workflow_dispatch:
 
 jobs:
@@ -17,7 +17,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           package: assfisc-thin-client
           exclude-tags: latest,10,main
-          keep-n-tagged: 5
+          keep-n-tagged: 20
           delete-untagged: true
           dry-run: false
-
