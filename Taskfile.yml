@@ -6,7 +6,7 @@ set: [pipefail, errexit]
 vars:
   PODMAN: "sudo podman"
 
-  IMAGE_NAME: "localhost/bootc-images/alma"
+  IMAGE_NAME: "localhost/bootc-images/alma:amd_v2"
   CONTAINER_FILE: "Dockerfile"
   VARIANT: "kde"
   IMAGE_CONFIG: "./iso.toml"
