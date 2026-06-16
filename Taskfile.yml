@@ -77,6 +77,7 @@ tasks:
       vars: [IMAGE_TYPE, OUTPUT_FILE]
     vars:
       LIBREPO: '{{if eq .IMAGE_TYPE "iso"}}False{{else}}True{{end}}'
+      ISO_IMAGE: "quay.io/almalinuxorg/almalinux-bootc:9"
     sources:
       - "{{.IMAGE_CONFIG}}"
       - .task/image.built
@@ -85,7 +86,8 @@ tasks:
     cmds:
       - mkdir -p ./output
       - cp {{.IMAGE_CONFIG}} ./output/config.toml
-      - sed -i '/bootc switch/d' ./output/config.toml
+      - sed -i 's#<UPDATE_IMAGE_REF>#ghcr.io/beokko/assfisc-thin-client:amd64_v2#g' ./output/config.toml
+      - "{{.PODMAN}} pull {{.ISO_IMAGE}}"
       - |
         {{.PODMAN}} run \
           --rm \
@@ -100,7 +102,7 @@ tasks:
           --type {{.IMAGE_TYPE}} \
           --use-librepo={{.LIBREPO}} \
           --progress verbose \
-          {{.IMAGE_NAME}}
+          {{.ISO_IMAGE}}
 
   iso:
     desc: Create iso with bib
