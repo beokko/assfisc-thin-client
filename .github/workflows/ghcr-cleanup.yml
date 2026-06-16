@@ -16,7 +16,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           package: assfisc-thin-client
-          exclude-tags: latest,10,main
+          exclude-tags: latest,10,main,amd64_v2
           keep-n-tagged: 20
           delete-untagged: true
           dry-run: false
