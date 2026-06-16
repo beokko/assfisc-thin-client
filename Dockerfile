@@ -8,7 +8,8 @@ COPY *.pub /keys/
 COPY env /env
 
 # Base Image
-FROM quay.io/almalinuxorg/almalinux-bootc:10@sha256:e6cbe08f3a8a2f0a8c021ee765e6b9e12310ca82e62f196e3581c2d1c2b7fb29
+# Fork-specific: pin the amd64_v2 variant for older CPUs that only support x86-64-v2.
+FROM quay.io/almalinuxorg/almalinux-bootc:10@sha256:ebe7e424bf74208011eeb9bbaa9541602881008acc21ad33a0c39cb3ec90e4fe
 
 ARG IMAGE_NAME
 ARG IMAGE_REGISTRY
@@ -18,6 +19,7 @@ RUN --mount=type=tmpfs,dst=/opt \
     --mount=type=tmpfs,dst=/tmp \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=secret,id=pull_secret,dst=/run/secrets/auth.json,required=false \
+    --mount=type=secret,id=mok_key,dst=/run/secrets/mok.key,required=false \
     /ctx/build_files/build.sh
 
 ### LINTING
