@@ -101,6 +101,11 @@ usermod --lock root
 mkdir -p /etc/sddm.conf.d
 printf "[Autologin]\nUser=%s\nSession=plasma\nRelogin=true\n" "$(id -un 1000)" > /etc/sddm.conf.d/autologin.conf
 
+mok_cert="/etc/pki/dkms/mok.pub"
+mok_hash=""
+
+if [[ ! -f /etc/vm-testing ]]; then
+
 # --- LUKS reencryption ---
 echo ""
 echo "========================================"
@@ -227,7 +232,6 @@ unset original_passphrase
 echo
 
 # Pre-generate MOK hash while passphrase is still available
-mok_cert="/etc/pki/dkms/mok.pub"
 [[ -f "$mok_cert" ]] && mok_hash=$(mokutil --generate-hash="$passphrase")
 
 unset recovery_key passphrase passphrase_confirm
@@ -243,6 +247,8 @@ fi
 
 echo "LUKS setup done."
 read -r -p "Press Enter to continue..."
+
+fi # [[ ! -f /etc/vm-testing ]]
 
 # --- WireGuard ---
 clear
@@ -304,7 +310,7 @@ unset private_key preshared_key wg_client_address
 clear
 
 mok_enrolled=false
-if [[ -f "$mok_cert" ]]; then
+if [[ -f "$mok_cert" && -n "$mok_hash" ]]; then
     mok_test_output=$(mokutil --test-key "$mok_cert" 2>&1 || true)
     if ! echo "$mok_test_output" | grep -qi "already enrolled"; then
         echo ""
