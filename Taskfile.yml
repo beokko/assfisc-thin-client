@@ -6,7 +6,7 @@ set: [pipefail, errexit]
 vars:
   PODMAN: "sudo podman"
 
-  IMAGE_NAME: "localhost/bootc-images/alma"
+  IMAGE_NAME: "localhost/bootc-images/alma:amd64_v2"
   CONTAINER_FILE: "Dockerfile"
   VARIANT: "kde"
   IMAGE_CONFIG: "./iso.toml"
@@ -38,7 +38,7 @@ tasks:
       - env
       - files/**/*
     generates:
-      - .task/image_main.built
+      - .task/image_amd64_v2.built
     status:
       - "{{.PODMAN}} image inspect {{.IMAGE_NAME}} >/dev/null 2>&1"
     vars:
@@ -59,6 +59,7 @@ tasks:
           --security-opt=label=disable \
           --cap-add=all \
           --device /dev/fuse \
+          --secret id=mok_key,src=/etc/pki/dkms/bootc-alma/mok.key \
           --build-arg IMAGE_NAME={{.IMAGE_NAME}} \
           --build-arg IMAGE_REGISTRY=localhost \
           --build-arg VARIANT={{.VARIANT}} \
@@ -66,7 +67,7 @@ tasks:
           -f {{.BUILD_CTX}}/{{.CONTAINER_FILE}} \
           {{.BUILD_CTX}}
       - mkdir -p .task
-      - "{{.PODMAN}} images --quiet --no-trunc {{.IMAGE_NAME}} > .task/image_main.built"
+      - "{{.PODMAN}} images --quiet --no-trunc {{.IMAGE_NAME}} > .task/image_amd64_v2.built"
 
   bib_image:
     desc: Generic bib run
@@ -84,7 +85,7 @@ tasks:
     cmds:
       - mkdir -p ./output
       - cp {{.IMAGE_CONFIG}} ./output/config.toml
-      - sed -i '/bootc switch/d' ./output/config.toml
+      - sed -i 's#<UPDATE_IMAGE_REF>#ghcr.io/beokko/assfisc-thin-client:amd64_v2#g' ./output/config.toml
       - |
         {{.PODMAN}} run \
           --rm \

@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - "main"
+      - "amd64_v2"
     paths-ignore:
       - "**/README.md"
   workflow_dispatch:
@@ -46,17 +47,20 @@ jobs:
       image-description: "My AlmaLinux Atomic Respin"
       containerfile: Dockerfile
       image-name: "${{ needs.set-env.outputs.IMAGE_NAME }}"
-      previous-image: "${{ needs.set-env.outputs.IMAGE_REF }}:latest"
+      previous-image: "${{ needs.set-env.outputs.IMAGE_REF }}:amd64_v2"
       upstream-public-key: atomic-desktop.pub
       platforms: ${{ needs.set-env.outputs.PLATFORMS }}
       skip-maximize-build-space: true
       image-path: ${{ needs.set-env.outputs.IMAGE_PATH }}
       REGISTRY: ${{ needs.set-env.outputs.REGISTRY }}
       REGISTRY_USER: ${{ needs.set-env.outputs.REGISTRY_USER }}
+      # Publish + sign the long-lived variant branch like the default branch.
+      extra-publish-branches: "amd64_v2"
     secrets:
       REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       SIGNING_SECRET: ${{ secrets.SIGNING_SECRET }}
       GHCR_PULL_AUTH_JSON: ${{ secrets.GHCR_PULL_AUTH_JSON }}
+      DKMS_KEY: ${{ secrets.DKMS_KEY }}
     permissions:
       contents: read
       packages: write
