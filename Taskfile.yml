@@ -38,7 +38,7 @@ tasks:
       - env
       - files/**/*
     generates:
-      - .task/image.built
+      - .task/image_main.built
     status:
       - "{{.PODMAN}} image inspect {{.IMAGE_NAME}} >/dev/null 2>&1"
     vars:
@@ -66,7 +66,7 @@ tasks:
           -f {{.BUILD_CTX}}/{{.CONTAINER_FILE}} \
           {{.BUILD_CTX}}
       - mkdir -p .task
-      - "{{.PODMAN}} images --quiet --no-trunc {{.IMAGE_NAME}} > .task/main.built"
+      - "{{.PODMAN}} images --quiet --no-trunc {{.IMAGE_NAME}} > .task/image_main.built"
 
   bib_image:
     desc: Generic bib run
