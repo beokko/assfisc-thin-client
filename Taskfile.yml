@@ -16,7 +16,6 @@ vars:
   LIBVIRT_DOMAIN: "1-bootc-alma"
   LIBVIRT_ROOT: "/mnt/btrfs_root/kvm"
   LIBVIRT_QCOW2: "{{.LIBVIRT_ROOT}}/virt-disks/{{.LIBVIRT_DOMAIN}}.qcow2"
-  LIBVIRT_ISO: "{{.LIBVIRT_ROOT}}/iso/bootc-alma-amd64.iso"
 
   WG_DEV_PUBLIC_KEY: "/s8cFxU/uc2B9wonFTySaznAjyM5Vtlhs0JY+KnKFww="
 
@@ -53,6 +52,7 @@ tasks:
       - echo 'systemctl disable firewalld.service' >> {{.BUILD_CTX}}/files/scripts/12-firewall.sh
       - mkdir -p {{.BUILD_CTX}}/files/system/usr/ssh
       - cp ~/.ssh/id_ed25519.pub {{.BUILD_CTX}}/files/system/usr/ssh/authorized_keys
+      - touch {{.BUILD_CTX}}/files/system/etc/vm-testing
       - defer: rm -rf {{.BUILD_CTX}}
       - |
         {{.PODMAN}} build \
@@ -66,7 +66,7 @@ tasks:
           -f {{.BUILD_CTX}}/{{.CONTAINER_FILE}} \
           {{.BUILD_CTX}}
       - mkdir -p .task
-      - "{{.PODMAN}} images --quiet --no-trunc {{.IMAGE_NAME}} > .task/image.built"
+      - "{{.PODMAN}} images --quiet --no-trunc {{.IMAGE_NAME}} > .task/main.built"
 
   bib_image:
     desc: Generic bib run
@@ -119,9 +119,8 @@ tasks:
 
   vm_base:
     internal: true
-    deps: [iso]
+    deps: [qcow2]
     cmds:
-      - cp -f {{.QEMU_ISO}} {{.LIBVIRT_ISO}}
       - |
         if virsh dominfo {{.LIBVIRT_DOMAIN}} >/dev/null 2>&1; then
           if [ "$(virsh domstate {{.LIBVIRT_DOMAIN}})" = "running" ]; then
@@ -129,10 +128,7 @@ tasks:
           fi
           virsh undefine {{.LIBVIRT_DOMAIN}} --nvram
         fi
-      - |
-        if ! [ -f "{{.LIBVIRT_QCOW2}}" ]; then
-          qemu-img create -f qcow2 {{.LIBVIRT_QCOW2}} 64G
-        fi
+      - cp -f {{.QEMU_DISK_QCOW2}} {{.LIBVIRT_QCOW2}}
       - |
         virt-install \
         --hvm \
@@ -141,15 +137,14 @@ tasks:
         -n {{.LIBVIRT_DOMAIN}} \
         --memory 2048 \
         --vcpus 2 \
-        --cdrom {{.LIBVIRT_ISO}} \
+        --import \
         --disk {{.LIBVIRT_QCOW2}} \
         --network network=LAN10 \
         --graphics spice \
-        {{.EXTRA_ARGS}} \
-        --wait
+        {{.EXTRA_ARGS}}
 
   vm:
-    desc: Install and start a VM from the ISO (plain UEFI)
+    desc: Create and start a VM from the qcow2 image (plain UEFI)
     cmds:
       - task: vm_base
         vars:
