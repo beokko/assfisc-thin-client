@@ -44,6 +44,10 @@ dnf remove -y \
     tracker \
     xwaylandvideobridge
 
+# Disable plasmalogin, enable sddm
+systemctl disable plasmalogin.service
+systemctl enable sddm.service
+
 # TZ
 ln -sf /usr/share/zoneinfo/Europe/Brussels /etc/localtime
 
