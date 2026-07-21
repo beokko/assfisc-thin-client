@@ -7,6 +7,7 @@ dnf install -y --setopt=group_package_types=mandatory @"KDE"
 
 # Other needed packages
 dnf install -y \
+    sddm \
     glibc-langpack-fr \
     plymouth \
     plymouth-system-theme \
