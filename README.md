@@ -1,71 +1,48 @@
-# bootc-alma
+# bootc-alma thin client
 
-An [AlmaLinux 10](https://almalinux.org/) bootc-based OS image for RDP thin clients. Built as an OCI container, deployed atomically via bootc.
+An [AlmaLinux 10](https://almalinux.org/) [bootc](https://containers.github.io/bootc/)-based OS image for RDP thin clients. Built as an OCI container image and deployed atomically; updates are pulled and applied like any other container image.
 
 ## What it does
 
-- **KDE Plasma** desktop with a minimal custom panel layout
-- **KRDC** auto-launches on login and connects to the configured RDP server
-- **WireGuard** VPN auto-connects on boot (split-tunnel)
-- **LUKS2** full disk encryption with optional TPM2 enrollment
-- **First-boot provisioning**: interactive setup — hostname generation (MAC-based), admin + auto-login user creation, LUKS rekey with recovery key (QR code displayed) and optional TPM2/PIN enrollment, WireGuard keypair generation and VPN configuration, RDP server configuration
-- **Firewall**: default-drop on all interfaces; wg0 placed in the trusted zone
-- Belgian French locale (`fr_BE.UTF-8`, `be-latin1` keyboard)
-- Automatic bootc update checks
+- KDE Plasma desktop that auto-connects to a configured RDP server on login
+- WireGuard VPN, brought up automatically and reconfigurable from a central endpoint without re-provisioning
+- LUKS2 disk encryption with interactive first-boot setup (recovery key, optional TPM2 unlock)
+- Ephemeral desktop user, recreated on every boot; only a few dotfiles persist
+- Locked-down firewall, hardened SSH, minimal service set
+- Printing, smartcard, and Bluetooth support for office peripherals
+- RustDesk bundled (disabled by default) for out-of-band remote support
+- Belgian French locale/keyboard throughout, including at the LUKS prompt
+- Unattended, signed bootc updates
+
+See `files/scripts/` and `files/system/` for the concrete build steps and shipped config.
 
 ## Repository structure
 
 ```
 files/
-  scripts/          # Build-time scripts, run in order during image build
-    10-base.sh        # Package install and removal
-    11-disable-services.sh  # Service masking (cups, avahi, ModemManager, TTYs 2-6, ...)
-    12-firewall.sh    # firewalld default-drop zone, enabled at boot
-    20-provisioning.sh  # WireGuard file permissions, enable first-boot service
-    50-branding.sh    # KDE theme setup
-    89-initramfs.sh   # Dracut rebuild for custom be-latin1 keymap (LUKS unlock prompt)
-  system/           # Files copied verbatim into the image filesystem
-    etc/wireguard/wg0.conf        # WireGuard template (server pubkey substituted at build time)
-    etc/NetworkManager/conf.d/    # Prevents NetworkManager from managing the WireGuard interface
-    etc/ssh/sshd_config.d/        # SSH hardening for the kiosk
-    etc/sudoers.d/                # Wheel group nopasswd
-    etc/skel/.config/             # KDE user defaults (power, screen lock, KRDC, KWallet)
-    etc/systemd/system/           # first-boot-provision service + bootc update override
-    usr/libexec/first-boot-provision.sh  # Interactive first-boot provisioning script
-    usr/share/plasma/look-and-feel/be.okko.minimalpanel/  # Custom KDE panel layout
-Dockerfile          # Container image definition
-iso.toml            # bootc-image-builder ISO config (Anaconda, LUKS, locale)
-Makefile            # Local build and testing targets
+  scripts/   # Build-time provisioning scripts, run in order during the image build
+  system/    # Files copied verbatim into the image filesystem (units, configs, provisioning scripts)
+Dockerfile   # Container image definition
+iso.toml     # bootc-image-builder config for producing an installable ISO
+env          # Runtime config baked into the image (endpoints, prefix)
+Taskfile.yml # Local build/test targets (see below)
 ```
 
 ## CI/CD
 
-GitHub Actions builds and pushes the container image to GHCR on every push to `main`. The ISO is built manually via the `build-iso` workflow.
-
-### Required variables
-
-| Variable | Description |
-|--------|-------------|
-| `SSH_AUTHORIZED_KEYS` | `authorized_key` file contents |
-| `WG_PUBLIC_KEY` | WireGuard server public key |
-
-### Required secrets
-
-| Secret | Description |
-|--------|-------------|
-| `SIGNING_SECRET` | Cosign private key for image signing |
-| `LUKS_PLACEHOLDER_PASS` | LUKS passphrase used by the Anaconda installer during ISO install |
+CI runs as reusable workflows from a companion `atomic-ci` repo. On push/PR, the image is built, SBOM'd, smoke-tested, and — on `main` — signed, retagged, and released. A separate manual workflow builds an installable ISO. Repository variables/secrets provide the RDP/WireGuard/signing keys the build needs.
 
 ## Local development
 
-The `image` target substitutes CI secrets with local test values before building and reverts them afterwards. Edit the values at the top of the `image` target in the Makefile to match your test environment.
+Local builds and VM testing are driven by [Task](https://taskfile.dev/). Edit the vars at the top of `Taskfile.yml` to match your test environment.
 
 ```sh
-make image        # Build the container image (requires sudo + podman)
-make iso          # Build a bootable ISO via bootc-image-builder
-make qcow2        # Build a QCOW2 disk image
-make vm           # Deploy ISO to a libvirt VM
-make vm-tpm       # Same with TPM2 (Secure Boot in setup mode)
-make vm-tpm-sb    # Same with TPM2 and Secure Boot enforced
-make clean        # Remove ./output
+task            # List available tasks
+task image       # Build the container image locally (requires sudo + podman)
+task iso         # Build a bootable ISO via bootc-image-builder
+task qcow2       # Build a QCOW2 disk image
+task vm          # Deploy the qcow2 image to a libvirt VM
+task vm-tpm      # Same, with a TPM device (Secure Boot setup mode)
+task vm-tpm-sb   # Same, with a TPM device and Secure Boot enforced
+task clean       # Remove ./output
 ```
