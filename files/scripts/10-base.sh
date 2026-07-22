@@ -5,8 +5,32 @@ set -xeuo pipefail
 # KDE minimal
 dnf install -y --setopt=group_package_types=mandatory @"KDE"
 
+# Unnecessary things
+dnf remove -y \
+    plasma-login-manager \
+    nfs-utils \
+    quota \
+    rpcbind \
+    cloud-utils-growpart \
+    WALinuxAgent-udev \
+    kdump-utils \
+    kexec-tools \
+    makedumpfile \
+    PackageKit \
+    qt6-qtwebengine \
+    toolbox \
+    sos \
+    usbmuxd \
+    plasma-welcome \
+    tracker \
+    xwaylandvideobridge
+
 # Other needed packages
 dnf install -y \
+    sddm \
+    kde-settings-sddm \
+    sddm-breeze \
+    sddm-kcm \
     glibc-langpack-fr \
     plymouth \
     plymouth-system-theme \
@@ -24,24 +48,9 @@ dnf install -y \
     freerdp \
     kdialog
 
-# Unnecessary things
-dnf remove -y \
-    nfs-utils \
-    quota \
-    rpcbind \
-    cloud-utils-growpart \
-    WALinuxAgent-udev \
-    kdump-utils \
-    kexec-tools \
-    makedumpfile \
-    PackageKit \
-    qt6-qtwebengine \
-    toolbox \
-    sos \
-    usbmuxd \
-    plasma-welcome \
-    tracker \
-    xwaylandvideobridge
+# Disable plasmalogin, enable sddm
+systemctl disable plasmalogin.service || true
+systemctl enable sddm.service
 
 # TZ
 ln -sf /usr/share/zoneinfo/Europe/Brussels /etc/localtime
