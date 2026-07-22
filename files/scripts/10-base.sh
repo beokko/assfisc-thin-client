@@ -28,6 +28,9 @@ dnf remove -y \
 # Other needed packages
 dnf install -y \
     sddm \
+    kde-settings-sddm \
+    sddm-breeze \
+    sddm-kcm \
     glibc-langpack-fr \
     plymouth \
     plymouth-system-theme \
