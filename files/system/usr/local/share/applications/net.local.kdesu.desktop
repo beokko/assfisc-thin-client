@@ -1,6 +1,0 @@
-[Desktop Entry]
-Exec=kdesu -u admin -c konsole
-Name=admin konsole
-StartupNotify=false
-Type=Application
-X-KDE-GlobalAccel-CommandShortcut=true
