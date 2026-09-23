@@ -56,8 +56,16 @@ systemctl enable sddm.service
 ln -sf /usr/share/zoneinfo/Europe/Brussels /etc/localtime
 
 # Change konsole's perms and ownership
-chown root:wheel /usr/bin/konsole
-chmod 750 /usr/bin/konsole
+mv /usr/bin/konsole /usr/bin/konsole.real
+chown root:wheel /usr/bin/konsole.real
+chmod 750 /usr/bin/konsole.real
+
+# Create konsole wrapper
+cat > /usr/bin/konsole <<'EOF'
+#!/bin/bash
+exec kdesu -u admin -c "/usr/bin/konsole.real $(printf '%q ' "$@")"
+EOF
+chmod +x /usr/bin/konsole
 
 # Auto-launches xfreerdp script at user login
 mkdir -p /etc/skel/.config/autostart
