@@ -2,15 +2,38 @@
 
 set -euo pipefail
 
+debug=0
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -d|--debug)
+            debug=1
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            exit 1
+            ;;
+    esac
+done
+
 env_file="/usr/lib/env"
 source "$env_file"
 logfile="$HOME/.local/share/xfreerdp/xfreerdp.log"
 kb_layout="0x080C"
 xfreerdp_args=(
-    "/v:$RDP_ENDPOINT" "/multimon" "/printer"
-    "/sound" "/smartcard" "/kbd:layout:$kb_layout"
-    "/cert:tofu" "/floatbar:sticky:off,default:hidden,show:fullscreen"
+    "/v:$RDP_ENDPOINT" "/printer" "/kbd:layout:$kb_layout"
 )
+
+if [[ "$debug" -eq 1 ]]; then
+    xfreerdp_args+=(
+        "/size:1280x800" "/cert:ignore" "/log-level:DEBUG"
+    )
+else
+    xfreerdp_args+=(
+        "/multimon" "/sound" "/smartcard" "/cert:tofu"
+        "/floatbar:sticky:off,default:hidden,show:fullscreen"
+    )
+fi
 
 create_logfile(){
     if [[ ! -f "$logfile" ]]; then
@@ -78,6 +101,7 @@ check_availability() {
 
 create_logfile
 rotate_logfile
+[[ "$debug" -eq 1 ]] && log "Debug mode enabled"
 check_availability
 
 while true; do
