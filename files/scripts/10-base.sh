@@ -78,4 +78,3 @@ if [[ -f /run/secrets/auth.json && -s /run/secrets/auth.json ]]; then
 fi
 
 chmod +x /usr/libexec/wg-recreate.sh
-systemctl enable wg-recreate.service
