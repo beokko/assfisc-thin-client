@@ -1,6 +1,5 @@
 [Unit]
 Description=Recreate wireguard config on boot
-Before=wg-quick@.service
 ConditionPathExists=/usr/lib/env
 
 [Service]
