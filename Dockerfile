@@ -8,7 +8,7 @@ COPY *.pub /keys/
 COPY env /env
 
 # Base Image
-FROM quay.io/almalinuxorg/almalinux-bootc:10@sha256:1bf84d0720dca762a9b1e3cf7143a3dad2b0f85ea7848a3e9405b37472510371
+FROM quay.io/almalinuxorg/almalinux-bootc:10@sha256:7a80a51c0890f5ed736a8517e13adfa7dc6d882ac9838b6d8d60cd5207fbb69f
 
 ARG IMAGE_NAME
 ARG IMAGE_REGISTRY
