@@ -30,7 +30,7 @@ if [[ "$debug" -eq 1 ]]; then
     )
 else
     xfreerdp_args+=(
-        "/multimon" "/sound" "/smartcard" "/cert:tofu"
+        "/multimon" "/sound" "/cert:tofu"
         "/floatbar:sticky:off,default:hidden,show:fullscreen"
     )
 fi
