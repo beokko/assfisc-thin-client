@@ -9,7 +9,7 @@ An [AlmaLinux 10](https://almalinux.org/) [bootc](https://containers.github.io/b
 - LUKS2 disk encryption with interactive first-boot setup (recovery key, optional TPM2 unlock)
 - Ephemeral desktop user, recreated on every boot; only a few dotfiles persist
 - Locked-down firewall, hardened SSH, minimal service set
-- Printing, smartcard, and Bluetooth support for office peripherals
+- Printing and Bluetooth support for office peripherals
 - RustDesk bundled (disabled by default) for out-of-band remote support
 - Belgian French locale/keyboard throughout, including at the LUKS prompt
 - Unattended, signed bootc updates
