@@ -20,6 +20,9 @@ env_file="/usr/lib/env"
 source "$env_file"
 logfile="$HOME/.local/share/xfreerdp/xfreerdp.log"
 kb_layout="0x080C"
+# FreeRDP still tries to get a Kerberos ticket once despite !kerberos and logs
+# a "Cannot find KDC" error. NTLM is what we use, so hide that logger.
+export WLOG_FILTER="com.winpr.sspi.Kerberos:OFF"
 xfreerdp_args=(
     "/v:$RDP_ENDPOINT" "/printer" "/kbd:layout:$kb_layout"
 )
@@ -32,6 +35,7 @@ else
     xfreerdp_args+=(
         "/multimon" "/sound" "/cert:tofu"
         "/floatbar:sticky:off,default:hidden,show:fullscreen"
+        "/auth-pkg-list:!kerberos"
     )
 fi
 
