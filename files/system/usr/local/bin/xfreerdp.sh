@@ -109,9 +109,10 @@ while true; do
 
     rdp_output=$(mktemp)
     set +e
-    xfreerdp "${xfreerdp_args[@]}" "/d:$CRED_DOMAIN" "/u:$CRED_USER" "/p:$CRED_PASS" \
+    printf '%s\n' "$CRED_PASS" | \
+        xfreerdp "${xfreerdp_args[@]}" "/d:$CRED_DOMAIN" "/u:$CRED_USER" /from-stdin \
         2>&1 | tee "$rdp_output" | while IFS= read -r line; do log "$line"; done
-    rdp_exit=${PIPESTATUS[0]}
+    rdp_exit=${PIPESTATUS[1]}
     set -e
     unset CRED_PASS
 
