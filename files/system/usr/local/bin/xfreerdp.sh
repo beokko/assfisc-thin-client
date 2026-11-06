@@ -20,6 +20,9 @@ env_file="/usr/lib/env"
 source "$env_file"
 logfile="$HOME/.local/share/xfreerdp/xfreerdp.log"
 kb_layout="0x080C"
+# FreeRDP still tries to get a Kerberos ticket once despite !kerberos and logs
+# a "Cannot find KDC" error. NTLM is what we use, so hide that logger.
+export WLOG_FILTER="com.winpr.sspi.Kerberos:OFF"
 xfreerdp_args=(
     "/v:$RDP_ENDPOINT" "/printer" "/kbd:layout:$kb_layout"
 )
@@ -32,6 +35,7 @@ else
     xfreerdp_args+=(
         "/multimon" "/sound" "/cert:tofu"
         "/floatbar:sticky:off,default:hidden,show:fullscreen"
+        "/auth-pkg-list:!kerberos"
     )
 fi
 
@@ -109,9 +113,10 @@ while true; do
 
     rdp_output=$(mktemp)
     set +e
-    xfreerdp "${xfreerdp_args[@]}" "/d:$CRED_DOMAIN" "/u:$CRED_USER" "/p:$CRED_PASS" \
+    printf '%s\n' "$CRED_PASS" | \
+        xfreerdp "${xfreerdp_args[@]}" "/d:$CRED_DOMAIN" "/u:$CRED_USER" /from-stdin \
         2>&1 | tee "$rdp_output" | while IFS= read -r line; do log "$line"; done
-    rdp_exit=${PIPESTATUS[0]}
+    rdp_exit=${PIPESTATUS[1]}
     set -e
     unset CRED_PASS
 
