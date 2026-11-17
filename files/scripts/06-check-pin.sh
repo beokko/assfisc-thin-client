@@ -14,7 +14,9 @@ if [ -z "$urls" ]; then
     exit 1
 fi
 
-if printf '%s\n' "$urls" | grep -vF "$pin"; then
+re="(^|[^0-9.])${pin//./\\.}([^0-9]|$)"
+
+if printf '%s\n' "$urls" | grep -vE "$re"; then
     echo "ERROR: some repositories do not point at release $pin"
     exit 1
 fi
