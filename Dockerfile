@@ -8,17 +8,17 @@ COPY *.pub /keys/
 COPY env /env
 
 # Base Image
-FROM quay.io/almalinuxorg/almalinux-bootc:10.2@sha256:f5c15d8ddc2a9120f27749d5d7c8b219814ab8566b5420006a1758f63164293c
+FROM quay.io/almalinuxorg/almalinux-bootc:10.3@sha256:6e00fd0ff19e29f132045c75bffad11972ac4000342006d00aedf02554ce8cb2
 
 ARG IMAGE_NAME
 ARG IMAGE_REGISTRY
 ARG VARIANT
 
 RUN --mount=type=tmpfs,dst=/opt \
-    --mount=type=tmpfs,dst=/tmp \
-    --mount=type=bind,from=ctx,source=/,target=/ctx \
-    --mount=type=secret,id=pull_secret,dst=/run/secrets/auth.json,required=false \
-    /ctx/build_files/build.sh
+  --mount=type=tmpfs,dst=/tmp \
+  --mount=type=bind,from=ctx,source=/,target=/ctx \
+  --mount=type=secret,id=pull_secret,dst=/run/secrets/auth.json,required=false \
+  /ctx/build_files/build.sh
 
 ### LINTING
 ## Verify final image and contents are correct.
