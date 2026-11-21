@@ -52,6 +52,10 @@ dnf install -y \
 systemctl disable plasmalogin.service || true
 systemctl enable sddm.service
 
+# The base image boots to multi-user.target. This used to be done by the
+# installer, but the live ISO also needs it to start a graphical session.
+systemctl set-default graphical.target
+
 # TZ
 ln -sf /usr/share/zoneinfo/Europe/Brussels /etc/localtime
 

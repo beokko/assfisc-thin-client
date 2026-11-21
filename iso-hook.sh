@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Runs at the end of the live ISO build, inside the live environment. See
+# hook-script in .github/workflows/build-iso.yml.
+#
+# Adds our defaults to the installer's kickstart. The installer is still
+# interactive, these only pre-fill its choices. CI replaces PLACEHOLDER
+# with the LUKS_PLACEHOLDER_PASS secret before the build.
+
+set -euo pipefail
+
+cat >> /usr/share/anaconda/interactive-defaults.ks <<'EOF'
+
+lang fr_BE.UTF-8
+keyboard --vckeymap=be-latin1 --xlayouts='fr'
+timezone Europe/Brussels
+
+firewall --use-system-defaults
+
+zerombr
+clearpart --all --initlabel --disklabel=gpt
+autopart --type=lvm --encrypted --passphrase=PLACEHOLDER --luks-version=luks2
+
+rootpw --lock
+EOF

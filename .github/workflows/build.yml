@@ -119,7 +119,6 @@ jobs:
     with:
       image-name: "${{ needs.set-env.outputs.IMAGE_NAME }}"
       version: ${{ needs.build-image.outputs.version }}
-      pretty-version: ${{ needs.build-image.outputs.redhat-version-id }}
       latest-image-ref: "${{ needs.build-image.outputs.image-ref }}:${{ needs.set-env.outputs.LATEST_TAG }}"
     permissions:
       contents: write
