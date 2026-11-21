@@ -8,6 +8,11 @@
 
 set -euo pipefail
 
+systemctl disable \
+    first-boot-provision.service \
+    selinux-relabel.service \
+    user-recreate.service
+
 cat >> /usr/share/anaconda/interactive-defaults.ks <<'EOF'
 
 lang fr_BE.UTF-8
