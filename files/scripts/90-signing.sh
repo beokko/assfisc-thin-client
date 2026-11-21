@@ -21,6 +21,14 @@ cp ${CONTEXT_PATH}/keys/cosign.pub ${CONTAINER_PKI}/${IMAGE_NAME_FILE}.pub
 
 POLICY_FILE="${CONTAINER_DIR}/policy.json"
 
+# Newer base images ship the default policy in /usr/share/containers instead
+# of /etc/containers. Read from there if /etc has none, and write the result
+# to /etc, which takes precedence.
+POLICY_SRC="${POLICY_FILE}"
+if [ ! -f "${POLICY_SRC}" ]; then
+    POLICY_SRC="/usr/share/containers/policy.json"
+fi
+
 # We need to add our cosign public key to the policy file and make sure
 # that the default policy is set to reject.
 # We'll also add a permissive policy for all the local transports.
@@ -41,7 +49,7 @@ jq --arg image_registry "${IMAGE_REGISTRY}" \
     | .transports *= (["docker-daemon", "containers-storage", "dir", "oci", "oci-archive", "docker-archive", "tarball"]
         | map({(.): {"": [{"type": "insecureAcceptAnything"}]}})
         | add)
-    | .default[0].type = "reject"' "${POLICY_FILE}" > "/tmp/POLICY.tmp"
+    | .default[0].type = "reject"' "${POLICY_SRC}" > "/tmp/POLICY.tmp"
 
 mv "/tmp/POLICY.tmp" "${POLICY_FILE}"
 
