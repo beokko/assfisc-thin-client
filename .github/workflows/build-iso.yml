@@ -34,7 +34,7 @@ jobs:
   build-iso:
     name: Build ISO
     needs: [set-env]
-    uses: aurelien-etienne/atomic-ci/.github/workflows/build-iso.yml@sync-v13
+    uses: aurelien-etienne/atomic-ci/.github/workflows/build-iso.yml@main
     permissions:
       contents: read
       packages: read
