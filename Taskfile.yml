@@ -203,6 +203,7 @@ tasks:
       - defer: rm -rf {{.LIVE_CTX}}
       - cp -a iso/. {{.LIVE_CTX}}/
       - cp iso-hook.sh {{.LIVE_CTX}}/hook.sh
+      - sed -i 's|^autopart .*|autopart --type=lvm|' {{.LIVE_CTX}}/hook.sh
       - |
         # Built from the image ID like in CI, where the name isn't enough to
         # find images of platforms with a variant
