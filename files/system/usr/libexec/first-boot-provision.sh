@@ -284,7 +284,7 @@ echo ""
 qrencode -t UTF8 "$preshared_key"
 echo ""
 
-read -r -p "Press Enter once the pre-shared key has been registered on the server..."clear
+read -r -p "Press Enter once the pre-shared key has been registered on the server..."
 clear
 
 echo "========================================"

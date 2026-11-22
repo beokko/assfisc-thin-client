@@ -3,6 +3,11 @@
 name: Build ISO
 on:
   workflow_dispatch:
+    inputs:
+      image-tag:
+        description: "Tag of the image to build the ISO from. Leave empty to use the branch name (latest on the default branch)."
+        type: string
+        default: ""
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
@@ -41,8 +46,8 @@ jobs:
       id-token: write
     with:
       image-name: "${{ needs.set-env.outputs.IMAGE_NAME }}"
-      image: "${{ needs.set-env.outputs.IMAGE_REF }}:${{ needs.set-env.outputs.LATEST_TAG }}"
-      update-origin-ref: "${{ needs.set-env.outputs.IMAGE_REF }}:${{ needs.set-env.outputs.LATEST_TAG }}"
+      image: "${{ needs.set-env.outputs.IMAGE_REF }}:${{ inputs.image-tag || needs.set-env.outputs.LATEST_TAG }}"
+      update-origin-ref: "${{ needs.set-env.outputs.IMAGE_REF }}:${{ inputs.image-tag || needs.set-env.outputs.LATEST_TAG }}"
       hook-script: ./iso-hook.sh
       platforms: ${{ needs.set-env.outputs.PLATFORMS }}
       REGISTRY: ${{ needs.set-env.outputs.REGISTRY }}
@@ -51,7 +56,6 @@ jobs:
       # bucket: ${{ secrets.R2_BUCKET }}
     secrets:
       REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      LUKS_PLACEHOLDER_PASS: ${{ secrets.LUKS_PLACEHOLDER_PASS }}
       # R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
       # ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
       # SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}

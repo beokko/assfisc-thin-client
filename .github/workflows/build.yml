@@ -46,7 +46,7 @@ jobs:
     with:
       generate-sbom: true
       image-description: "My AlmaLinux Atomic Respin"
-      containerfile: Dockerfile
+      containerfile: Containerfile
       image-name: "${{ needs.set-env.outputs.IMAGE_NAME }}"
       previous-image: "${{ needs.set-env.outputs.IMAGE_REF }}:latest"
       upstream-public-key: atomic-desktop.pub

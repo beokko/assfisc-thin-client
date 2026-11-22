@@ -7,12 +7,20 @@ vars:
   PODMAN: "sudo podman"
 
   IMAGE_NAME: "localhost/bootc-images/alma"
-  CONTAINER_FILE: "Dockerfile"
+  CONTAINER_FILE: "Containerfile"
   VARIANT: "kde"
-  IMAGE_CONFIG: "./iso.toml"
 
   QEMU_DISK_QCOW2: "./output/qcow2/disk.qcow2"
-  QEMU_ISO: "./output/bootiso/install.iso"
+
+  ISO_NAME: "bootc-alma"
+  ISO_PLATFORM: "amd64"
+  ISO_DIR: "./output/iso"
+  ISO_IMAGE_REF: "{{.IMAGE_NAME}}:latest"
+  ISO_UPDATE_ORIGIN_REF: "{{.ISO_IMAGE_REF}}"
+  IMAGE_BUILDER_IMAGE: "ghcr.io/osbuild/image-builder-cli:latest"
+  ISO_CI_REPO: "https://github.com/aurelien-etienne/atomic-ci.git"
+  ISO_CI_REF: "main"
+  ISO_CI_LIVE_DIR: ".github/actions/build-iso/live"
   LIBVIRT_DOMAIN: "1-bootc-alma"
   LIBVIRT_ROOT: "/mnt/btrfs_root/kvm"
   LIBVIRT_QCOW2: "{{.LIBVIRT_ROOT}}/virt-disks/{{.LIBVIRT_DOMAIN}}.qcow2"
@@ -34,7 +42,7 @@ tasks:
     desc: Build image locally (rootful podman)
     run: once
     sources:
-      - Dockerfile
+      - "{{.CONTAINER_FILE}}"
       - env
       - files/**/*
     generates:
@@ -43,11 +51,15 @@ tasks:
       - "{{.PODMAN}} image inspect {{.IMAGE_NAME}} >/dev/null 2>&1"
     vars:
       BUILD_CTX: ./output/build-context
+      EMPTY_CTX: ./output/empty-context
+      UNCHUNKED: "{{.IMAGE_NAME}}:unchunked"
+      FIXED: "{{.IMAGE_NAME}}:fixed"
+      RECHUNKED: "{{.IMAGE_NAME}}:rechunked"
     cmds:
       - sudo -v
       - rm -rf {{.BUILD_CTX}}
       - mkdir -p {{.BUILD_CTX}}
-      - cp -a Dockerfile env files *.pub {{.BUILD_CTX}}/
+      - cp -a {{.CONTAINER_FILE}} env files *.pub {{.BUILD_CTX}}/
       - sed -i 's|GH_SEC_WG_PUBLIC_KEY|{{.WG_DEV_PUBLIC_KEY}}|' {{.BUILD_CTX}}/files/system/etc/wireguard/wg0.conf
       - echo 'systemctl disable firewalld.service' >> {{.BUILD_CTX}}/files/scripts/12-firewall.sh
       - mkdir -p {{.BUILD_CTX}}/files/system/usr/ssh
@@ -62,9 +74,82 @@ tasks:
           --build-arg IMAGE_NAME={{.IMAGE_NAME}} \
           --build-arg IMAGE_REGISTRY=localhost \
           --build-arg VARIANT={{.VARIANT}} \
-          -t {{.IMAGE_NAME}} \
+          -t {{.UNCHUNKED}} \
           -f {{.BUILD_CTX}}/{{.CONTAINER_FILE}} \
           {{.BUILD_CTX}}
+      # The rest mirrors the rechunk step of the image build in CI, without
+      # what only matters for publishing (labels, changelog). Without it, the
+      # image has one layer of several GB that doesn't fit in the RAM-backed
+      # /var/tmp of the live ISO, and the installation fails.
+      - mkdir -p {{.EMPTY_CTX}}
+      - defer: rm -rf {{.EMPTY_CTX}}
+      - |
+        {{.PODMAN}} build \
+          --pull=never \
+          --security-opt=label=disable \
+          --build-arg IMAGE={{.UNCHUNKED}} \
+          -t {{.FIXED}} \
+          -f - \
+          {{.EMPTY_CTX}} <<'EOF'
+        ARG IMAGE
+        FROM ${IMAGE}
+
+        # Keep the users and groups of the image in /usr/lib/passwd and /usr/lib/group (read through
+        # nss-altfiles), like the base image does for its own, leaving only root and wheel in /etc.
+        # /etc/passwd and /etc/group stop getting updates from the image as soon as they are modified
+        # in a system, which is always, so users and groups left there never reach installed systems.
+        RUN <<'EORUN'
+        set -euo pipefail
+        touch /usr/lib/passwd /usr/lib/group
+        { grep -v '^root:' /etc/passwd | grep -vxFf /usr/lib/passwd >> /usr/lib/passwd; } || true
+        { grep -Ev '^(root|wheel):' /etc/group | grep -vxFf /usr/lib/group >> /usr/lib/group; } || true
+        sed -i '/^root:/!d' /etc/passwd
+        sed -i -E '/^(root|wheel):/!d' /etc/group
+        # Lock and backup files left behind by useradd and groupadd
+        rm -f /etc/.pwd.lock /etc/passwd- /etc/group- /etc/shadow- /etc/gshadow- /etc/subuid- /etc/subgid-
+        EORUN
+
+        # Images built with rpm-ostree, like the base image, have a copy of the package database that
+        # rpm-ostree uses to know what the image has. Installing packages on top doesn't update it,
+        # so it would only list the packages of the base image.
+        RUN <<'EORUN'
+        set -euo pipefail
+        RPMDB="$(realpath "$(rpm --eval '%{_dbpath}')")"
+        BASE_RPMDB=/usr/lib/sysimage/rpm-ostree-base-db
+        if [[ -d "${BASE_RPMDB}" && "${RPMDB}" != "${BASE_RPMDB}" ]]; then
+            rm -rf "${BASE_RPMDB}"
+            cp -a "${RPMDB}" "${BASE_RPMDB}"
+        fi
+        EORUN
+        EOF
+      - |
+        # rpm-ostree needs /var/tmp as scratch space, which the image doesn't have
+        {{.PODMAN}} run --rm \
+          --pull=never \
+          --privileged \
+          --security-opt=label=disable \
+          -v /var/lib/containers:/var/lib/containers \
+          -v /var/tmp:/var/tmp \
+          --entrypoint=/usr/libexec/bootc-base-imagectl \
+          {{.FIXED}} \
+          rechunk {{.FIXED}} {{.RECHUNKED}}
+      - |
+        {{.PODMAN}} run --rm --pull=never {{.RECHUNKED}} bash -c '
+            set -euo pipefail
+            rpmdb --verifydb
+            BASE_RPMDB=/usr/lib/sysimage/rpm-ostree-base-db
+            if [[ -d "${BASE_RPMDB}" ]]; then
+                rpmdb --verifydb --dbpath "${BASE_RPMDB}"
+            fi'
+      - |
+        # Replace the previous image, and remove it if nothing else uses it
+        OLD_ID=$({{.PODMAN}} images --quiet --no-trunc {{.IMAGE_NAME}}:latest)
+        NEW_ID=$({{.PODMAN}} images --quiet --no-trunc {{.RECHUNKED}})
+        {{.PODMAN}} tag {{.RECHUNKED}} {{.IMAGE_NAME}}:latest
+        {{.PODMAN}} rmi {{.RECHUNKED}} {{.FIXED}} {{.UNCHUNKED}}
+        if [[ -n "${OLD_ID}" && "${OLD_ID}" != "${NEW_ID}" ]]; then
+          {{.PODMAN}} rmi "${OLD_ID}" || true
+        fi
       - mkdir -p .task
       - "{{.PODMAN}} images --quiet --no-trunc {{.IMAGE_NAME}} > .task/image_main.built"
 
@@ -74,17 +159,12 @@ tasks:
     internal: true
     requires:
       vars: [IMAGE_TYPE, OUTPUT_FILE]
-    vars:
-      LIBREPO: '{{if eq .IMAGE_TYPE "iso"}}False{{else}}True{{end}}'
     sources:
-      - "{{.IMAGE_CONFIG}}"
       - .task/image.built
     generates:
       - "{{.OUTPUT_FILE}}"
     cmds:
       - mkdir -p ./output
-      - cp {{.IMAGE_CONFIG}} ./output/config.toml
-      - sed -i '/bootc switch/d' ./output/config.toml
       - |
         {{.PODMAN}} run \
           --rm \
@@ -93,21 +173,89 @@ tasks:
           --pull=newer \
           --security-opt label=type:unconfined_t \
           -v ./output:/output \
-          -v ./output/config.toml:/config.toml:ro \
           -v /var/lib/containers/storage:/var/lib/containers/storage \
           quay.io/centos-bootc/bootc-image-builder:latest \
           --type {{.IMAGE_TYPE}} \
-          --use-librepo={{.LIBREPO}} \
+          --use-librepo=True \
           --progress verbose \
           {{.IMAGE_NAME}}
 
   iso:
-    desc: Create iso with bib
+    desc: Build a live ISO with an installer, the way CI does
+    deps: [image]
+    sources:
+      - .task/image_main.built
+      - iso-hook.sh
+    generates:
+      - "{{.ISO_DIR}}/{{.ISO_NAME}}-{{.ISO_PLATFORM}}.iso"
+    vars:
+      LIVE_CTX: ./output/live-iso-context
+      LIVE_IMAGE: "localhost/{{.ISO_NAME}}-live"
+      BUILD_OUT: ./output/iso-build
     cmds:
-      - task: bib_image
-        vars:
-          IMAGE_TYPE: iso
-          OUTPUT_FILE: "{{.QEMU_ISO}}"
+      - sudo -v
+      - rm -rf {{.LIVE_CTX}}
+      - mkdir -p {{.LIVE_CTX}}
+      - defer: rm -rf {{.LIVE_CTX}}
+      - |
+        CLONE="$(mktemp -d)"
+        trap 'rm -rf "${CLONE}"' EXIT
+        git clone --quiet --depth 1 --branch {{.ISO_CI_REF}} {{.ISO_CI_REPO}} "${CLONE}"
+        cp -a "${CLONE}/{{.ISO_CI_LIVE_DIR}}/." {{.LIVE_CTX}}/
+      - cp iso-hook.sh {{.LIVE_CTX}}/hook.sh
+      - sed -i 's|^autopart .*|autopart --type=lvm|' {{.LIVE_CTX}}/hook.sh
+      - |
+        # Built from the image ID like in CI, where the name isn't enough to
+        # find images of platforms with a variant
+        IMAGE_ID=$({{.PODMAN}} images --quiet --no-trunc {{.ISO_IMAGE_REF}})
+        {{.PODMAN}} build \
+          --platform=linux/{{.ISO_PLATFORM}} \
+          --pull=never \
+          --cap-add=sys_admin \
+          --security-opt=label=disable \
+          --build-arg BASE_IMAGE="${IMAGE_ID}" \
+          --build-arg IMAGE_REF={{.ISO_IMAGE_REF}} \
+          --build-arg UPDATE_IMAGE_REF={{.ISO_UPDATE_ORIGIN_REF}} \
+          --build-arg ISO_NAME={{.ISO_NAME}} \
+          --build-arg ISO_LABEL="" \
+          -t {{.LIVE_IMAGE}} \
+          -f {{.LIVE_CTX}}/Containerfile \
+          {{.LIVE_CTX}}
+      - sudo rm -rf {{.BUILD_OUT}}
+      - mkdir -p {{.BUILD_OUT}}
+      - |
+        RC=0
+        {{.PODMAN}} run \
+          --rm \
+          --privileged \
+          --pull=newer \
+          --security-opt label=type:unconfined_t \
+          -v {{.BUILD_OUT}}:/output \
+          -v /var/lib/containers/storage:/var/lib/containers/storage \
+          {{.IMAGE_BUILDER_IMAGE}} \
+          build \
+          --progress verbose \
+          --output-dir /output \
+          --with-manifest \
+          --with-buildlog \
+          --with-metrics \
+          --bootc-ref {{.LIVE_IMAGE}} \
+          --bootc-installer-payload-ref {{.ISO_IMAGE_REF}} \
+          bootc-generic-iso || RC=$?
+        sudo chown -R "$(id -u):$(id -g)" {{.BUILD_OUT}}
+        if [[ $RC -ne 0 ]]; then
+          echo "The ISO build failed, see the build log and the manifest in {{.BUILD_OUT}}" >&2
+          exit $RC
+        fi
+      - "{{.PODMAN}} rmi {{.LIVE_IMAGE}}"
+      - |
+        ISO="$(find {{.BUILD_OUT}} -name '*.iso' | head -1)"
+        [[ -f "${ISO}" ]] || { echo "No ISO found in {{.BUILD_OUT}}" >&2; exit 1; }
+        mkdir -p {{.ISO_DIR}}
+        mv "${ISO}" {{.ISO_DIR}}/{{.ISO_NAME}}-{{.ISO_PLATFORM}}.iso
+        cd {{.ISO_DIR}}
+        sha256sum {{.ISO_NAME}}-{{.ISO_PLATFORM}}.iso > {{.ISO_NAME}}-{{.ISO_PLATFORM}}.iso-CHECKSUM
+        ls -lh {{.ISO_NAME}}-{{.ISO_PLATFORM}}.iso
 
   qcow2:
     desc: Create qcow2 with bib
