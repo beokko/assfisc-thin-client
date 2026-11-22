@@ -39,7 +39,7 @@ Local builds and VM testing are driven by [Task](https://taskfile.dev/). Edit th
 
 ```sh
 task            # List available tasks
-task image       # Build the container image locally (requires sudo + podman)
+task image       # Build and rechunk the container image locally, like CI (requires sudo + podman)
 task iso         # Build the live ISO the same way CI does, with image-builder
 task qcow2       # Build a QCOW2 disk image
 task vm          # Deploy the qcow2 image to a libvirt VM

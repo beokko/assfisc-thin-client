@@ -51,6 +51,10 @@ tasks:
       - "{{.PODMAN}} image inspect {{.IMAGE_NAME}} >/dev/null 2>&1"
     vars:
       BUILD_CTX: ./output/build-context
+      EMPTY_CTX: ./output/empty-context
+      UNCHUNKED: "{{.IMAGE_NAME}}:unchunked"
+      FIXED: "{{.IMAGE_NAME}}:fixed"
+      RECHUNKED: "{{.IMAGE_NAME}}:rechunked"
     cmds:
       - sudo -v
       - rm -rf {{.BUILD_CTX}}
@@ -70,9 +74,82 @@ tasks:
           --build-arg IMAGE_NAME={{.IMAGE_NAME}} \
           --build-arg IMAGE_REGISTRY=localhost \
           --build-arg VARIANT={{.VARIANT}} \
-          -t {{.IMAGE_NAME}} \
+          -t {{.UNCHUNKED}} \
           -f {{.BUILD_CTX}}/{{.CONTAINER_FILE}} \
           {{.BUILD_CTX}}
+      # The rest mirrors the rechunk step of the image build in CI, without
+      # what only matters for publishing (labels, changelog). Without it, the
+      # image has one layer of several GB that doesn't fit in the RAM-backed
+      # /var/tmp of the live ISO, and the installation fails.
+      - mkdir -p {{.EMPTY_CTX}}
+      - defer: rm -rf {{.EMPTY_CTX}}
+      - |
+        {{.PODMAN}} build \
+          --pull=never \
+          --security-opt=label=disable \
+          --build-arg IMAGE={{.UNCHUNKED}} \
+          -t {{.FIXED}} \
+          -f - \
+          {{.EMPTY_CTX}} <<'EOF'
+        ARG IMAGE
+        FROM ${IMAGE}
+
+        # Keep the users and groups of the image in /usr/lib/passwd and /usr/lib/group (read through
+        # nss-altfiles), like the base image does for its own, leaving only root and wheel in /etc.
+        # /etc/passwd and /etc/group stop getting updates from the image as soon as they are modified
+        # in a system, which is always, so users and groups left there never reach installed systems.
+        RUN <<'EORUN'
+        set -euo pipefail
+        touch /usr/lib/passwd /usr/lib/group
+        { grep -v '^root:' /etc/passwd | grep -vxFf /usr/lib/passwd >> /usr/lib/passwd; } || true
+        { grep -Ev '^(root|wheel):' /etc/group | grep -vxFf /usr/lib/group >> /usr/lib/group; } || true
+        sed -i '/^root:/!d' /etc/passwd
+        sed -i -E '/^(root|wheel):/!d' /etc/group
+        # Lock and backup files left behind by useradd and groupadd
+        rm -f /etc/.pwd.lock /etc/passwd- /etc/group- /etc/shadow- /etc/gshadow- /etc/subuid- /etc/subgid-
+        EORUN
+
+        # Images built with rpm-ostree, like the base image, have a copy of the package database that
+        # rpm-ostree uses to know what the image has. Installing packages on top doesn't update it,
+        # so it would only list the packages of the base image.
+        RUN <<'EORUN'
+        set -euo pipefail
+        RPMDB="$(realpath "$(rpm --eval '%{_dbpath}')")"
+        BASE_RPMDB=/usr/lib/sysimage/rpm-ostree-base-db
+        if [[ -d "${BASE_RPMDB}" && "${RPMDB}" != "${BASE_RPMDB}" ]]; then
+            rm -rf "${BASE_RPMDB}"
+            cp -a "${RPMDB}" "${BASE_RPMDB}"
+        fi
+        EORUN
+        EOF
+      - |
+        # rpm-ostree needs /var/tmp as scratch space, which the image doesn't have
+        {{.PODMAN}} run --rm \
+          --pull=never \
+          --privileged \
+          --security-opt=label=disable \
+          -v /var/lib/containers:/var/lib/containers \
+          -v /var/tmp:/var/tmp \
+          --entrypoint=/usr/libexec/bootc-base-imagectl \
+          {{.FIXED}} \
+          rechunk {{.FIXED}} {{.RECHUNKED}}
+      - |
+        {{.PODMAN}} run --rm --pull=never {{.RECHUNKED}} bash -c '
+            set -euo pipefail
+            rpmdb --verifydb
+            BASE_RPMDB=/usr/lib/sysimage/rpm-ostree-base-db
+            if [[ -d "${BASE_RPMDB}" ]]; then
+                rpmdb --verifydb --dbpath "${BASE_RPMDB}"
+            fi'
+      - |
+        # Replace the previous image, and remove it if nothing else uses it
+        OLD_ID=$({{.PODMAN}} images --quiet --no-trunc {{.IMAGE_NAME}}:latest)
+        NEW_ID=$({{.PODMAN}} images --quiet --no-trunc {{.RECHUNKED}})
+        {{.PODMAN}} tag {{.RECHUNKED}} {{.IMAGE_NAME}}:latest
+        {{.PODMAN}} rmi {{.RECHUNKED}} {{.FIXED}} {{.UNCHUNKED}}
+        if [[ -n "${OLD_ID}" && "${OLD_ID}" != "${NEW_ID}" ]]; then
+          {{.PODMAN}} rmi "${OLD_ID}" || true
+        fi
       - mkdir -p .task
       - "{{.PODMAN}} images --quiet --no-trunc {{.IMAGE_NAME}} > .task/image_main.built"
 
