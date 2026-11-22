@@ -13,15 +13,11 @@ systemctl disable \
     selinux-relabel.service \
     user-recreate.service
 
-# The image only lets admins run konsole, through a kdesu wrapper. The live
-# session has no admin user, so put the real binary back.
+rm -f /etc/skel/.config/autostart/org.kde.krdc.desktop
+
 mv -f /usr/bin/konsole.real /usr/bin/konsole
 chown root:root /usr/bin/konsole
 chmod 755 /usr/bin/konsole
-
-# There is nothing to connect to without the WireGuard tunnel of an
-# installed system.
-rm -f /etc/skel/.config/autostart/org.kde.krdc.desktop
 
 # The installer is interactive, these only pre-fill its choices. It asks for
 # the disk passphrase itself.

@@ -16,9 +16,6 @@ vars:
   ISO_PLATFORM: "amd64"
   ISO_DIR: "./output/iso"
   ISO_IMAGE_REF: "{{.IMAGE_NAME}}:latest"
-  # CI points this at the image in the registry. The local image can't be
-  # pulled from anywhere, so updates on a system installed from a local ISO
-  # won't work unless this is overridden.
   ISO_UPDATE_ORIGIN_REF: "{{.ISO_IMAGE_REF}}"
   IMAGE_BUILDER_IMAGE: "ghcr.io/osbuild/image-builder-cli:latest"
   LIBVIRT_DOMAIN: "1-bootc-alma"
@@ -180,9 +177,6 @@ tasks:
           --progress verbose \
           {{.IMAGE_NAME}}
 
-  # Same steps as the ISO build in CI: build a live environment on top of the
-  # image with iso/Containerfile, then have image-builder turn it into an ISO
-  # that embeds the image as the installer payload.
   iso:
     desc: Build a live ISO with an installer, the way CI does
     deps: [image]
