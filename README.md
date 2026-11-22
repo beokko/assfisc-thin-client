@@ -23,6 +23,7 @@ files/
   scripts/   # Build-time provisioning scripts, run in order during the image build
   system/    # Files copied verbatim into the image filesystem (units, configs, provisioning scripts)
 Dockerfile   # Container image definition
+iso/         # Live ISO build for `task iso`, a copy of what atomic-ci uses in CI
 iso-hook.sh  # Customizes the live ISO session and pre-fills its installer
 env          # Runtime config baked into the image (endpoints, prefix)
 Taskfile.yml # Local build/test targets (see below)
@@ -39,6 +40,7 @@ Local builds and VM testing are driven by [Task](https://taskfile.dev/). Edit th
 ```sh
 task            # List available tasks
 task image       # Build the container image locally (requires sudo + podman)
+task iso         # Build the live ISO the same way CI does, with image-builder
 task qcow2       # Build a QCOW2 disk image
 task vm          # Deploy the qcow2 image to a libvirt VM
 task vm-tpm      # Same, with a TPM device (Secure Boot setup mode)

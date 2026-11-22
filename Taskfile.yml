@@ -11,6 +11,16 @@ vars:
   VARIANT: "kde"
 
   QEMU_DISK_QCOW2: "./output/qcow2/disk.qcow2"
+
+  ISO_NAME: "bootc-alma"
+  ISO_PLATFORM: "amd64"
+  ISO_DIR: "./output/iso"
+  ISO_IMAGE_REF: "{{.IMAGE_NAME}}:latest"
+  # CI points this at the image in the registry. The local image can't be
+  # pulled from anywhere, so updates on a system installed from a local ISO
+  # won't work unless this is overridden.
+  ISO_UPDATE_ORIGIN_REF: "{{.ISO_IMAGE_REF}}"
+  IMAGE_BUILDER_IMAGE: "ghcr.io/osbuild/image-builder-cli:latest"
   LIBVIRT_DOMAIN: "1-bootc-alma"
   LIBVIRT_ROOT: "/mnt/btrfs_root/kvm"
   LIBVIRT_QCOW2: "{{.LIBVIRT_ROOT}}/virt-disks/{{.LIBVIRT_DOMAIN}}.qcow2"
@@ -92,6 +102,82 @@ tasks:
           --use-librepo=True \
           --progress verbose \
           {{.IMAGE_NAME}}
+
+  # Same steps as the ISO build in CI: build a live environment on top of the
+  # image with iso/Containerfile, then have image-builder turn it into an ISO
+  # that embeds the image as the installer payload.
+  iso:
+    desc: Build a live ISO with an installer, the way CI does
+    deps: [image]
+    sources:
+      - .task/image_main.built
+      - iso-hook.sh
+      - iso/*
+    generates:
+      - "{{.ISO_DIR}}/{{.ISO_NAME}}-{{.ISO_PLATFORM}}.iso"
+    vars:
+      LIVE_CTX: ./output/live-iso-context
+      LIVE_IMAGE: "localhost/{{.ISO_NAME}}-live"
+      BUILD_OUT: ./output/iso-build
+    cmds:
+      - sudo -v
+      - rm -rf {{.LIVE_CTX}}
+      - mkdir -p {{.LIVE_CTX}}
+      - defer: rm -rf {{.LIVE_CTX}}
+      - cp -a iso/. {{.LIVE_CTX}}/
+      - cp iso-hook.sh {{.LIVE_CTX}}/hook.sh
+      - |
+        # Built from the image ID like in CI, where the name isn't enough to
+        # find images of platforms with a variant
+        IMAGE_ID=$({{.PODMAN}} images --quiet --no-trunc {{.ISO_IMAGE_REF}})
+        {{.PODMAN}} build \
+          --platform=linux/{{.ISO_PLATFORM}} \
+          --pull=never \
+          --cap-add=sys_admin \
+          --security-opt=label=disable \
+          --build-arg BASE_IMAGE="${IMAGE_ID}" \
+          --build-arg IMAGE_REF={{.ISO_IMAGE_REF}} \
+          --build-arg UPDATE_IMAGE_REF={{.ISO_UPDATE_ORIGIN_REF}} \
+          --build-arg ISO_NAME={{.ISO_NAME}} \
+          --build-arg ISO_LABEL="" \
+          -t {{.LIVE_IMAGE}} \
+          -f {{.LIVE_CTX}}/Containerfile \
+          {{.LIVE_CTX}}
+      - sudo rm -rf {{.BUILD_OUT}}
+      - mkdir -p {{.BUILD_OUT}}
+      - |
+        RC=0
+        {{.PODMAN}} run \
+          --rm \
+          --privileged \
+          --pull=newer \
+          --security-opt label=type:unconfined_t \
+          -v {{.BUILD_OUT}}:/output \
+          -v /var/lib/containers/storage:/var/lib/containers/storage \
+          {{.IMAGE_BUILDER_IMAGE}} \
+          build \
+          --progress verbose \
+          --output-dir /output \
+          --with-manifest \
+          --with-buildlog \
+          --with-metrics \
+          --bootc-ref {{.LIVE_IMAGE}} \
+          --bootc-installer-payload-ref {{.ISO_IMAGE_REF}} \
+          bootc-generic-iso || RC=$?
+        sudo chown -R "$(id -u):$(id -g)" {{.BUILD_OUT}}
+        if [[ $RC -ne 0 ]]; then
+          echo "The ISO build failed, see the build log and the manifest in {{.BUILD_OUT}}" >&2
+          exit $RC
+        fi
+      - "{{.PODMAN}} rmi {{.LIVE_IMAGE}}"
+      - |
+        ISO="$(find {{.BUILD_OUT}} -name '*.iso' | head -1)"
+        [[ -f "${ISO}" ]] || { echo "No ISO found in {{.BUILD_OUT}}" >&2; exit 1; }
+        mkdir -p {{.ISO_DIR}}
+        mv "${ISO}" {{.ISO_DIR}}/{{.ISO_NAME}}-{{.ISO_PLATFORM}}.iso
+        cd {{.ISO_DIR}}
+        sha256sum {{.ISO_NAME}}-{{.ISO_PLATFORM}}.iso > {{.ISO_NAME}}-{{.ISO_PLATFORM}}.iso-CHECKSUM
+        ls -lh {{.ISO_NAME}}-{{.ISO_PLATFORM}}.iso
 
   qcow2:
     desc: Create qcow2 with bib
