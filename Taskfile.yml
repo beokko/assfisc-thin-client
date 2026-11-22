@@ -9,10 +9,8 @@ vars:
   IMAGE_NAME: "localhost/bootc-images/alma"
   CONTAINER_FILE: "Dockerfile"
   VARIANT: "kde"
-  IMAGE_CONFIG: "./iso.toml"
 
   QEMU_DISK_QCOW2: "./output/qcow2/disk.qcow2"
-  QEMU_ISO: "./output/bootiso/install.iso"
   LIBVIRT_DOMAIN: "1-bootc-alma"
   LIBVIRT_ROOT: "/mnt/btrfs_root/kvm"
   LIBVIRT_QCOW2: "{{.LIBVIRT_ROOT}}/virt-disks/{{.LIBVIRT_DOMAIN}}.qcow2"
@@ -74,17 +72,12 @@ tasks:
     internal: true
     requires:
       vars: [IMAGE_TYPE, OUTPUT_FILE]
-    vars:
-      LIBREPO: '{{if eq .IMAGE_TYPE "iso"}}False{{else}}True{{end}}'
     sources:
-      - "{{.IMAGE_CONFIG}}"
       - .task/image.built
     generates:
       - "{{.OUTPUT_FILE}}"
     cmds:
       - mkdir -p ./output
-      - cp {{.IMAGE_CONFIG}} ./output/config.toml
-      - sed -i '/bootc switch/d' ./output/config.toml
       - |
         {{.PODMAN}} run \
           --rm \
@@ -93,21 +86,12 @@ tasks:
           --pull=newer \
           --security-opt label=type:unconfined_t \
           -v ./output:/output \
-          -v ./output/config.toml:/config.toml:ro \
           -v /var/lib/containers/storage:/var/lib/containers/storage \
           quay.io/centos-bootc/bootc-image-builder:latest \
           --type {{.IMAGE_TYPE}} \
-          --use-librepo={{.LIBREPO}} \
+          --use-librepo=True \
           --progress verbose \
           {{.IMAGE_NAME}}
-
-  iso:
-    desc: Create iso with bib
-    cmds:
-      - task: bib_image
-        vars:
-          IMAGE_TYPE: iso
-          OUTPUT_FILE: "{{.QEMU_ISO}}"
 
   qcow2:
     desc: Create qcow2 with bib

@@ -23,14 +23,14 @@ files/
   scripts/   # Build-time provisioning scripts, run in order during the image build
   system/    # Files copied verbatim into the image filesystem (units, configs, provisioning scripts)
 Dockerfile   # Container image definition
-iso.toml     # bootc-image-builder config for producing an installable ISO
+iso-hook.sh  # Customizes the live ISO session and pre-fills its installer
 env          # Runtime config baked into the image (endpoints, prefix)
 Taskfile.yml # Local build/test targets (see below)
 ```
 
 ## CI/CD
 
-CI runs as reusable workflows from a companion `atomic-ci` repo. On push/PR, the image is built, SBOM'd, smoke-tested, and — on `main` — signed, retagged, and released. A separate manual workflow builds an installable ISO. Repository variables/secrets provide the RDP/WireGuard/signing keys the build needs.
+CI runs as reusable workflows from a companion `atomic-ci` repo. On push/PR, the image is built, SBOM'd, smoke-tested, and — on `main` — signed, retagged, and released. A separate manual workflow builds a live ISO that boots the image and can install it, adjusted by `iso-hook.sh`. Repository variables/secrets provide the RDP/WireGuard/signing keys the build needs.
 
 ## Local development
 
@@ -39,7 +39,6 @@ Local builds and VM testing are driven by [Task](https://taskfile.dev/). Edit th
 ```sh
 task            # List available tasks
 task image       # Build the container image locally (requires sudo + podman)
-task iso         # Build a bootable ISO via bootc-image-builder
 task qcow2       # Build a QCOW2 disk image
 task vm          # Deploy the qcow2 image to a libvirt VM
 task vm-tpm      # Same, with a TPM device (Secure Boot setup mode)
