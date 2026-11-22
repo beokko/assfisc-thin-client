@@ -7,7 +7,7 @@ vars:
   PODMAN: "sudo podman"
 
   IMAGE_NAME: "localhost/bootc-images/alma"
-  CONTAINER_FILE: "Dockerfile"
+  CONTAINER_FILE: "Containerfile"
   VARIANT: "kde"
 
   QEMU_DISK_QCOW2: "./output/qcow2/disk.qcow2"
@@ -42,7 +42,7 @@ tasks:
     desc: Build image locally (rootful podman)
     run: once
     sources:
-      - Dockerfile
+      - "{{.CONTAINER_FILE}}"
       - env
       - files/**/*
     generates:
@@ -55,7 +55,7 @@ tasks:
       - sudo -v
       - rm -rf {{.BUILD_CTX}}
       - mkdir -p {{.BUILD_CTX}}
-      - cp -a Dockerfile env files *.pub {{.BUILD_CTX}}/
+      - cp -a {{.CONTAINER_FILE}} env files *.pub {{.BUILD_CTX}}/
       - sed -i 's|GH_SEC_WG_PUBLIC_KEY|{{.WG_DEV_PUBLIC_KEY}}|' {{.BUILD_CTX}}/files/system/etc/wireguard/wg0.conf
       - echo 'systemctl disable firewalld.service' >> {{.BUILD_CTX}}/files/scripts/12-firewall.sh
       - mkdir -p {{.BUILD_CTX}}/files/system/usr/ssh
