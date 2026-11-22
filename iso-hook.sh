@@ -21,5 +21,9 @@ timezone Europe/Brussels
 
 firewall --use-system-defaults
 
+zerombr
+clearpart --all --initlabel --disklabel=gpt
+autopart --type=lvm --encrypted --passphrase=PLACEHOLDER --luks-version=luks2
+
 rootpw --lock
 EOF
