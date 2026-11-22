@@ -2,9 +2,9 @@
 # Runs at the end of the live ISO build, inside the live environment. See
 # hook-script in .github/workflows/build-iso.yml.
 #
-# Adds our defaults to the installer's kickstart. The installer is still
-# interactive, these only pre-fill its choices. CI replaces PLACEHOLDER
-# with the LUKS_PLACEHOLDER_PASS secret before the build.
+# Adjusts the live session and adds our defaults to the installer's
+# kickstart. None of this ends up on the installed system, which is
+# installed from the image itself.
 
 set -euo pipefail
 
@@ -12,6 +12,19 @@ systemctl disable \
     first-boot-provision.service \
     selinux-relabel.service \
     user-recreate.service
+
+# The image only lets admins run konsole, through a kdesu wrapper. The live
+# session has no admin user, so put the real binary back.
+mv -f /usr/bin/konsole.real /usr/bin/konsole
+chown root:root /usr/bin/konsole
+chmod 755 /usr/bin/konsole
+
+# There is nothing to connect to without the WireGuard tunnel of an
+# installed system.
+rm -f /etc/skel/.config/autostart/org.kde.krdc.desktop
+
+# The installer is interactive, these only pre-fill its choices. It asks for
+# the disk passphrase itself.
 
 cat >> /usr/share/anaconda/interactive-defaults.ks <<'EOF'
 
@@ -23,7 +36,7 @@ firewall --use-system-defaults
 
 zerombr
 clearpart --all --initlabel --disklabel=gpt
-autopart --type=lvm --encrypted --passphrase=PLACEHOLDER --luks-version=luks2
+autopart --type=lvm --encrypted --luks-version=luks2
 
 rootpw --lock
 EOF
