@@ -23,7 +23,6 @@ files/
   scripts/    # Build-time provisioning scripts, run in order during the image build
   system/     # Files copied verbatim into the image filesystem (units, configs, provisioning scripts)
 Containerfile # Container image definition
-iso/          # Live ISO build for `task iso`, a copy of what atomic-ci uses in CI
 iso-hook.sh   # Customizes the live ISO session and pre-fills its installer
 env           # Runtime config baked into the image (endpoints, prefix)
 Taskfile.yml  # Local build/test targets (see below)

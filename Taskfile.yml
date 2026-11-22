@@ -18,6 +18,9 @@ vars:
   ISO_IMAGE_REF: "{{.IMAGE_NAME}}:latest"
   ISO_UPDATE_ORIGIN_REF: "{{.ISO_IMAGE_REF}}"
   IMAGE_BUILDER_IMAGE: "ghcr.io/osbuild/image-builder-cli:latest"
+  ISO_CI_REPO: "https://github.com/aurelien-etienne/atomic-ci.git"
+  ISO_CI_REF: "main"
+  ISO_CI_LIVE_DIR: ".github/actions/build-iso/live"
   LIBVIRT_DOMAIN: "1-bootc-alma"
   LIBVIRT_ROOT: "/mnt/btrfs_root/kvm"
   LIBVIRT_QCOW2: "{{.LIBVIRT_ROOT}}/virt-disks/{{.LIBVIRT_DOMAIN}}.qcow2"
@@ -183,7 +186,6 @@ tasks:
     sources:
       - .task/image_main.built
       - iso-hook.sh
-      - iso/*
     generates:
       - "{{.ISO_DIR}}/{{.ISO_NAME}}-{{.ISO_PLATFORM}}.iso"
     vars:
@@ -195,7 +197,11 @@ tasks:
       - rm -rf {{.LIVE_CTX}}
       - mkdir -p {{.LIVE_CTX}}
       - defer: rm -rf {{.LIVE_CTX}}
-      - cp -a iso/. {{.LIVE_CTX}}/
+      - |
+        CLONE="$(mktemp -d)"
+        trap 'rm -rf "${CLONE}"' EXIT
+        git clone --quiet --depth 1 --branch {{.ISO_CI_REF}} {{.ISO_CI_REPO}} "${CLONE}"
+        cp -a "${CLONE}/{{.ISO_CI_LIVE_DIR}}/." {{.LIVE_CTX}}/
       - cp iso-hook.sh {{.LIVE_CTX}}/hook.sh
       - sed -i 's|^autopart .*|autopart --type=lvm|' {{.LIVE_CTX}}/hook.sh
       - |
